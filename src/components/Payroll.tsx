@@ -32,44 +32,73 @@ export const Payroll: React.FC = () => {
   const [fromDateFilter, setFromDateFilter] = useState('');
   const [toDateFilter, setToDateFilter] = useState('');
 
-  // 1. Reactive Auto-fetch when Barangay is selected
-  useEffect(() => {
-    if (!selectedBarangay) {
+  // Helper to sync surveyor team profiles and rates from a given group
+  const updateAutoDetails = (group: Group) => {
+    setAutoGroup(group);
+    
+    const leader = employees.find((e) => e.id === group.leaderId);
+    const coLdrIds = group.coLeaderIds || (group.coLeaderId ? [group.coLeaderId] : []);
+    const coLeaders = coLdrIds.map((id) => employees.find((e) => e.id === id)).filter((e): e is Employee => !!e);
+
+    if (leader) setAutoLeader(leader);
+    else setAutoLeader(null);
+    setAutoCoLeaders(coLeaders);
+  };
+
+  // 1. Manual or assisted change handlers
+  const handleBarangayChange = (barangayName: string) => {
+    setSelectedBarangay(barangayName);
+    
+    if (!barangayName) {
+      setSelectedGroupId('');
+      setGroupRate(0);
       setAutoGroup(null);
       setAutoLeader(null);
       setAutoCoLeaders([]);
-      setGroupRate(0);
-      setSelectedGroupId('');
       return;
     }
 
     // Find active group assigned to this Barangay
     const groupJoined = groups.find(
-      (g) => g.barangayAssigned === selectedBarangay && g.status === 'Active'
+      (g) => g.barangayAssigned === barangayName && g.status === 'Active'
     );
 
     if (groupJoined) {
-      setAutoGroup(groupJoined);
       setSelectedGroupId(groupJoined.id);
       setGroupRate(groupJoined.rate);
-
-      // Find leader and coleader details
-      const leader = employees.find((e) => e.id === groupJoined.leaderId);
-      
-      const coLdrIds = groupJoined.coLeaderIds || (groupJoined.coLeaderId ? [groupJoined.coLeaderId] : []);
-      const coLeaders = coLdrIds.map((id) => employees.find((e) => e.id === id)).filter((e): e is Employee => !!e);
-
-      if (leader) setAutoLeader(leader);
-      setAutoCoLeaders(coLeaders);
+      updateAutoDetails(groupJoined);
     } else {
-      // Clear auto-fetched info if no group is actively assigned to this sector
+      // Zero-out details if no active group matches, but allow manual selection
+      setSelectedGroupId('');
+      setGroupRate(0);
       setAutoGroup(null);
       setAutoLeader(null);
       setAutoCoLeaders([]);
-      setGroupRate(0);
-      setSelectedGroupId('');
     }
-  }, [selectedBarangay, groups, employees]);
+  };
+
+  const handleGroupChange = (groupId: string) => {
+    setSelectedGroupId(groupId);
+    
+    if (!groupId) {
+      setGroupRate(0);
+      setAutoGroup(null);
+      setAutoLeader(null);
+      setAutoCoLeaders([]);
+      return;
+    }
+
+    const groupJoined = groups.find((g) => g.id === groupId);
+    if (groupJoined) {
+      setGroupRate(groupJoined.rate);
+      updateAutoDetails(groupJoined);
+      
+      // Smart Auto-select Barangay matching that group
+      if (groupJoined.barangayAssigned) {
+        setSelectedBarangay(groupJoined.barangayAssigned);
+      }
+    }
+  };
 
   // Submit new survey
   const handleSubmit = async (e: React.FormEvent) => {
@@ -120,6 +149,15 @@ export const Payroll: React.FC = () => {
     setPopulationCount(srv.populationCount.toString());
     setGroupRate(srv.rate);
     setIsFormOpen(true); // Open block
+
+    const group = groups.find((g) => g.id === srv.groupId);
+    if (group) {
+      updateAutoDetails(group);
+    } else {
+      setAutoGroup(null);
+      setAutoLeader(null);
+      setAutoCoLeaders([]);
+    }
   };
 
   // Calculations
@@ -187,7 +225,7 @@ export const Payroll: React.FC = () => {
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
                   Survey Conduct Date
@@ -207,7 +245,7 @@ export const Payroll: React.FC = () => {
                 </label>
                 <select
                   value={selectedBarangay}
-                  onChange={(e) => setSelectedBarangay(e.target.value)}
+                  onChange={(e) => handleBarangayChange(e.target.value)}
                   className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium cursor-pointer"
                   required
                 >
@@ -215,6 +253,25 @@ export const Payroll: React.FC = () => {
                   {barangays.map((b) => (
                     <option key={b.id} value={b.barangayName}>
                       {b.barangayName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                  Assigned Group
+                </label>
+                <select
+                  value={selectedGroupId}
+                  onChange={(e) => handleGroupChange(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium cursor-pointer"
+                  required
+                >
+                  <option value="">Select Surveyor Group...</option>
+                  {groups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.groupName} ({g.barangayAssigned || 'No Sector assigned'})
                     </option>
                   ))}
                 </select>
