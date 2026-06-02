@@ -9,7 +9,7 @@ import { Employee } from '../types';
 import { Plus, Search, Edit3, Trash2, ShieldAlert, Check } from 'lucide-react';
 
 export const Employees: React.FC = () => {
-  const { employees, addEmployee, updateEmployee, deleteEmployee, user } = useApp();
+  const { employees, addEmployee, updateEmployee, deleteEmployee, user, barangays } = useApp();
   
   // States
   const [fullName, setFullName] = useState('');
@@ -115,16 +115,33 @@ export const Employees: React.FC = () => {
 
             <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-                Residential Address
+                Residential Address (Fetched from Barangays)
               </label>
-              <textarea
+              <select
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder="e.g. 123 Quezon St, Manila"
-                rows={3}
                 className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
                 required
-              />
+              >
+                <option value="">Select pre-registered Barangay...</option>
+                {barangays.map((b) => {
+                  const fullAddr = `${b.barangayName}, ${b.municipality}, ${b.province}`;
+                  return (
+                    <option key={b.id} value={fullAddr}>
+                      {b.barangayName}, {b.municipality}, {b.province}
+                    </option>
+                  );
+                })}
+                {/* Fallback option for current custom/legacy address if it's not empty and not in the list */}
+                {address && !barangays.some(b => `${b.barangayName}, ${b.municipality}, ${b.province}` === address) && (
+                  <option value={address}>{address}</option>
+                )}
+              </select>
+              {barangays.length === 0 && (
+                <p className="text-[10px] text-amber-600 mt-1.5">
+                  ⚠️ No pre-registered Barangay sectors found. Please register them in the Barangay Sectors tab.
+                </p>
+              )}
             </div>
 
             <div className="pt-2 flex gap-3">

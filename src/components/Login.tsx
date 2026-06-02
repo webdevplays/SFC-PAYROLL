@@ -109,7 +109,7 @@ export const Login: React.FC = () => {
             <span className="block text-center text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">
               Authorized Test Credentials
             </span>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <button
                 onClick={() => handlePreFill('admin')}
                 className="flex flex-col items-center p-2.5 rounded-2xl border border-slate-150 hover:bg-slate-50 text-center transition-all duration-200 group"
