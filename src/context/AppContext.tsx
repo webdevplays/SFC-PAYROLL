@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Employee, Barangay, Group, Survey, Settlement, PaidPayroll, AuditLog, User, SheetConfig } from '../types';
+import { Employee, Barangay, Group, Survey, Settlement, PaidPayroll, AuditLog, User, SheetConfig, UserCredentials } from '../types';
 import { syncDatabaseToGoogleSheetsClient, tryAppendToGoogleSheetClient } from '../utils/clientSync';
 
 const base64EncodeString = (str: string) => {
@@ -23,6 +23,7 @@ const getLocalDB = () => {
       if (!db.settlements) db.settlements = [];
       if (!db.paidPayroll) db.paidPayroll = [];
       if (!db.auditLogs) db.auditLogs = [];
+      if (!db.users) db.users = [];
       if (!db.sheetConfig) {
         db.sheetConfig = {
           spreadsheetId: process.env.SPREADSHEET_ID || "",
@@ -56,6 +57,7 @@ const getLocalDB = () => {
     settlements: [],
     paidPayroll: [],
     auditLogs: [],
+    users: [],
     sheetConfig: {
       spreadsheetId: process.env.SPREADSHEET_ID || "",
       clientId: "",
@@ -80,6 +82,7 @@ interface AppContextType {
   settlements: Settlement[];
   paidPayroll: PaidPayroll[];
   auditLogs: AuditLog[];
+  users: UserCredentials[];
   sheetConfig: SheetConfig | null;
   currentTab: string;
   isLoading: boolean;
@@ -91,6 +94,8 @@ interface AppContextType {
   
   // CRUD Actions
   fetchData: () => Promise<void>;
+  addCustomUser: (userObj: Omit<UserCredentials, 'id' | 'createdDate'>) => Promise<boolean>;
+  deleteCustomUser: (id: string) => Promise<boolean>;
   addEmployee: (emp: Omit<Employee, 'id' | 'createdDate'>) => Promise<void>;
   updateEmployee: (id: string, emp: Partial<Employee>) => Promise<void>;
   deleteEmployee: (id: string) => Promise<void>;
@@ -132,6 +137,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [paidPayroll, setPaidPayroll] = useState<PaidPayroll[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [users, setUsers] = useState<UserCredentials[]>([]);
   const [sheetConfig, setSheetConfig] = useState<SheetConfig | null>(null);
   
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
@@ -152,6 +158,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSettlements(db.settlements);
     setPaidPayroll(db.paidPayroll);
     setAuditLogs(db.auditLogs);
+    setUsers(db.users || []);
     setSheetConfig(db.sheetConfig);
   };
 
@@ -222,7 +229,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const headers = getHeaders();
 
-      const [empRes, bgyRes, grpRes, srvRes, setRes, paidRes, logRes, settingsRes] = await Promise.all([
+      const [empRes, bgyRes, grpRes, srvRes, setRes, paidRes, logRes, settingsRes, usersRes] = await Promise.all([
         fetch('/api/employees', { headers }),
         fetch('/api/barangays', { headers }),
         fetch('/api/groups', { headers }),
@@ -230,7 +237,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         fetch('/api/settlements', { headers }),
         fetch('/api/paid-payroll', { headers }),
         fetch('/api/logs', { headers }),
-        fetch('/api/settings', { headers })
+        fetch('/api/settings', { headers }),
+        fetch('/api/users', { headers })
       ]);
 
       if (empRes.status === 404 || empRes.status === 502 || !empRes.ok) {
@@ -245,6 +253,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (paidRes.ok) setPaidPayroll(await paidRes.json());
       if (logRes.ok) setAuditLogs(await logRes.json());
       if (settingsRes.ok) setSheetConfig(await settingsRes.json());
+      if (usersRes && usersRes.ok) setUsers(await usersRes.json());
 
     } catch (err) {
       console.warn("Express backend unreachable, triggering Local Fallback State: ", err);
@@ -273,7 +282,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const executeClientLogin = (username: string, password: string): boolean => {
     let clientUser: User | null = null;
     
-    if (username === 'admin' && password === 'password123') {
+    // Check local database custom users first
+    const db = getLocalDB();
+    const customUser = (db.users || []).find((u: any) => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
+    
+    if (customUser) {
+      clientUser = { username: customUser.username, role: customUser.role, fullName: customUser.fullName };
+    } else if (username === 'admin' && password === 'password123') {
       clientUser = { username: 'admin', role: 'Admin', fullName: 'Google Admin' };
     } else if (username === 'masterkey2026' && password === '021994') {
       clientUser = { username: 'masterkey2026', role: 'Admin', fullName: 'Google Admin Master' };
@@ -371,6 +386,97 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSheetConfig(null);
     setCurrentTab('dashboard');
     showToast("Logged out successfully.", "info");
+  };
+
+  // Dynamic user accounts management
+  const addCustomUser = async (userObj: Omit<UserCredentials, 'id' | 'createdDate'>): Promise<boolean> => {
+    setIsLoading(true);
+    if (isFallbackMode) {
+      const db = getLocalDB();
+      db.users = db.users || [];
+      if (db.users.some((u: any) => u.username.toLowerCase() === userObj.username.toLowerCase()) ||
+          ['admin', 'staff', 'masterkey2026'].includes(userObj.username.toLowerCase())) {
+        showToast("Username is already taken.", "error");
+        setIsLoading(false);
+        return false;
+      }
+      
+      const newUser: UserCredentials = {
+        ...userObj,
+        id: `USR-${Math.floor(100 + Math.random() * 900)}`,
+        createdDate: new Date().toISOString().split('T')[0]
+      };
+      
+      db.users = [...db.users, newUser];
+      addLocalAuditLog(db, user?.username || 'unknown', `Provisioned Admin Account: ${userObj.username} (${userObj.fullName})`);
+      await saveAndSyncLocalDB(db);
+      loadLocalState();
+      showToast("Admin account registered successfully!", "success");
+      setIsLoading(false);
+      return true;
+    }
+
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(userObj)
+      });
+      if (res.ok) {
+        showToast("Admin account registered successfully!", "success");
+        await fetchData();
+        setIsLoading(false);
+        return true;
+      } else {
+        const err = await res.json();
+        showToast(err.error || "Could not register account.", "error");
+        setIsLoading(false);
+        return false;
+      }
+    } catch (e) {
+      showToast("Error processing request.", "error");
+      setIsLoading(false);
+      return false;
+    }
+  };
+
+  const deleteCustomUser = async (id: string): Promise<boolean> => {
+    setIsLoading(true);
+    if (isFallbackMode) {
+      const db = getLocalDB();
+      db.users = db.users || [];
+      const userToDelete = db.users.find((u: any) => u.id === id);
+      db.users = db.users.filter((u: any) => u.id !== id);
+      
+      addLocalAuditLog(db, user?.username || 'unknown', `Revoked User Account: ${userToDelete?.username || id}`);
+      await saveAndSyncLocalDB(db);
+      loadLocalState();
+      showToast("Account access revoked.", "success");
+      setIsLoading(false);
+      return true;
+    }
+
+    try {
+      const res = await fetch(`/api/users/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+      });
+      if (res.ok) {
+        showToast("Account access revoked.", "success");
+        await fetchData();
+        setIsLoading(false);
+        return true;
+      } else {
+        const err = await res.json();
+        showToast(err.error || "Could not revoke account.", "error");
+        setIsLoading(false);
+        return false;
+      }
+    } catch (e) {
+      showToast("Error processing request.", "error");
+      setIsLoading(false);
+      return false;
+    }
   };
 
   // Employee CRM
@@ -985,6 +1091,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       settlements,
       paidPayroll,
       auditLogs,
+      users,
       sheetConfig,
       currentTab,
       isLoading,
@@ -992,6 +1099,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       login,
       logout,
       fetchData,
+      addCustomUser,
+      deleteCustomUser,
       addEmployee,
       updateEmployee,
       deleteEmployee,

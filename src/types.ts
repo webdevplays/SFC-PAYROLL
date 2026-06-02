@@ -84,3 +84,12 @@ export interface SheetConfig {
   privateKey: string;
   isSyncEnabled: boolean;
 }
+
+export interface UserCredentials {
+  id: string;
+  username: string;
+  password?: string;
+  fullName: string;
+  role: 'Admin' | 'Payroll Staff';
+  createdDate: string;
+}

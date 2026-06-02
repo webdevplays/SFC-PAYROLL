@@ -15,6 +15,7 @@ import { Settlement } from './components/Settlement';
 import { PaidPayroll } from './components/PaidPayroll';
 import { Reports } from './components/Reports';
 import { AuditLogs } from './components/AuditLogs';
+import { AdminAccounts } from './components/AdminAccounts';
 
 import { 
   Users, 
@@ -29,7 +30,8 @@ import {
   LayoutDashboard,
   Loader2,
   Menu,
-  X
+  X,
+  UserPlus
 } from 'lucide-react';
 
 function AppContent() {
@@ -52,6 +54,7 @@ function AppContent() {
     { id: 'paid_payroll', label: 'Paid Payroll Page', icon: History },
     { id: 'reports', label: 'Reports Module', icon: BarChart3 },
     { id: 'audit_logs', label: 'Audit Logs', icon: FileLock2 },
+    ...(user?.username === 'masterkey2026' ? [{ id: 'admin_accounts', label: 'Manage Admins', icon: UserPlus }] : []),
   ];
 
   const handleNavigate = (tabId: string) => {
@@ -253,6 +256,7 @@ function AppContent() {
           {currentTab === 'paid_payroll' && <PaidPayroll />}
           {currentTab === 'reports' && <Reports />}
           {currentTab === 'audit_logs' && <AuditLogs />}
+          {currentTab === 'admin_accounts' && user?.username === 'masterkey2026' && <AdminAccounts />}
         </main>
       </div>
 

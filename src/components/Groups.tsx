@@ -30,8 +30,8 @@ export const Groups: React.FC = () => {
   const itemsPerPage = 5;
 
   // Filter leaders / co-leaders for dropdowns
-  const leadersList = employees.filter((e) => e.position === 'Survey Leader' || e.position === 'Field Supervisor');
-  const coLeadersList = employees.filter((e) => e.position === 'Survey Co-Leader' || e.position === 'Field Surveyor' || e.position === 'Lead Enumerator');
+  const leadersList = employees.filter((e) => e.position === 'Leader' || e.position === 'Survey Leader' || e.position === 'Field Supervisor');
+  const coLeadersList = employees.filter((e) => e.position === 'Co-Leader' || e.position === 'Survey Co-Leader' || e.position === 'Field Surveyor' || e.position === 'Lead Enumerator' || e.position.includes('Co-') || e.position.startsWith('Others'));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

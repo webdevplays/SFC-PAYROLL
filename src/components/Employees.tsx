@@ -105,11 +105,11 @@ export const Employees: React.FC = () => {
                 required
               >
                 <option value="">Select official role...</option>
-                <option value="Survey Leader">Survey Leader</option>
-                <option value="Survey Co-Leader">Survey Co-Leader</option>
-                <option value="Lead Enumerator">Lead Enumerator</option>
-                <option value="Field Surveyor">Field Surveyor</option>
-                <option value="Field Supervisor">Field Supervisor</option>
+                <option value="Leader">Leader</option>
+                <option value="Co-Leader">Co-Leader</option>
+                <option value="Others-Surveyor">Others (Surveyor)</option>
+                <option value="Others-Supervisor">Others (Supervisor)</option>
+                <option value="Others">Others</option>
               </select>
             </div>
 
@@ -197,9 +197,13 @@ export const Employees: React.FC = () => {
                       <td className="px-4 py-3 text-slate-950 font-bold">{emp.fullName}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          emp.position.includes('Leader') ? 'bg-indigo-50 text-indigo-700' :
-                          emp.position.includes('Supervisor') ? 'bg-amber-50 text-amber-700' :
-                          'bg-slate-100 text-slate-600'
+                          emp.position === 'Leader' || (emp.position.includes('Leader') && !emp.position.toLowerCase().includes('co-'))
+                            ? 'bg-indigo-50 text-indigo-700'
+                            : emp.position === 'Co-Leader' || emp.position.includes('Co-Leader')
+                            ? 'bg-sky-50 text-sky-700'
+                            : emp.position.includes('Supervisor')
+                            ? 'bg-amber-50 text-amber-700'
+                            : 'bg-slate-100 text-slate-600'
                         }`}>
                           {emp.position}
                         </span>

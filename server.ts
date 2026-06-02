@@ -29,6 +29,7 @@ function getDB() {
         settlements: [],
         paidPayroll: [],
         auditLogs: [],
+        users: [],
         sheetConfig: {
           spreadsheetId: "",
           clientId: "",
@@ -40,6 +41,9 @@ function getDB() {
     }
     const data = fs.readFileSync(DB_FILE, 'utf8');
     const db = JSON.parse(data);
+    if (!db.users) {
+      db.users = [];
+    }
     if (db && db.groups) {
       db.groups.forEach((g: any) => {
         if (!g.coLeaderIds || !Array.isArray(g.coLeaderIds)) {
@@ -385,12 +389,17 @@ function checkAuth(req: express.Request, res: express.Response, next: express.Ne
   if (!token) {
     return res.status(401).json({ error: 'Unauthorized session token missing' });
   }
-  const decoded = Buffer.from(token, 'base64').toString('utf8');
-  if (decoded.includes('admin') || decoded.includes('staff') || decoded.includes('masterkey2026')) {
-    (req as any).user = JSON.parse(decoded);
-    next();
-  } else {
-    return res.status(401).json({ error: 'Invalid or expired session token' });
+  try {
+    const decoded = Buffer.from(token, 'base64').toString('utf8');
+    const parsed = JSON.parse(decoded);
+    if (parsed && parsed.role && (parsed.role === 'Admin' || parsed.role === 'Payroll Staff')) {
+      (req as any).user = parsed;
+      next();
+    } else {
+      return res.status(401).json({ error: 'Invalid or unauthorized user role session' });
+    }
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid or expired session token format' });
   }
 }
 
@@ -401,7 +410,20 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(400).json({ error: 'Username and password are required' });
   }
 
-  // Standard credentials simulation as requested
+  // Check dynamic users first
+  const db = getDB();
+  const matchedUser = (db.users || []).find(
+    (u: any) => u.username.toLowerCase() === username.toLowerCase() && u.password === password
+  );
+
+  if (matchedUser) {
+    const user = { username: matchedUser.username, role: matchedUser.role, fullName: matchedUser.fullName };
+    const token = Buffer.from(JSON.stringify(user)).toString('base64');
+    addAuditLog(matchedUser.username, `Secure Login - Role: ${matchedUser.role} (Custom DB Account)`);
+    return res.json({ token, user });
+  }
+
+  // Standard credentials simulation as fallback
   if (username === 'admin' && password === 'password123') {
     const user = { username: 'admin', role: 'Admin', fullName: 'John Administrator' };
     const token = Buffer.from(JSON.stringify(user)).toString('base64');
@@ -420,6 +442,76 @@ app.post('/api/auth/login', (req, res) => {
   } else {
     return res.status(401).json({ error: 'Invalid username or password' });
   }
+});
+
+// GET dynamic users list (restricted to admin or masterkey)
+app.get('/api/users', checkAuth, (req, res) => {
+  const db = getDB();
+  const usersList = (db.users || []).map((u: any) => ({
+    id: u.id,
+    username: u.username,
+    fullName: u.fullName,
+    role: u.role,
+    createdDate: u.createdDate
+  }));
+  res.json(usersList);
+});
+
+// POST dynamic users (only allow admin or masterkey user to create)
+app.post('/api/users', checkAuth, (req, res) => {
+  if ((req as any).user.role !== 'Admin') {
+    return res.status(403).json({ error: 'Only administrators have security privileges to manage accounts' });
+  }
+
+  const db = getDB();
+  const { username, password, fullName, role } = req.body;
+  if (!username || !password || !fullName || !role) {
+    return res.status(400).json({ error: 'All fields (username, password, fullName, role) are required' });
+  }
+
+  db.users = db.users || [];
+  if (db.users.some((u: any) => u.username.toLowerCase() === username.toLowerCase()) || 
+      ['admin', 'staff', 'masterkey2026'].includes(username.toLowerCase())) {
+    return res.status(400).json({ error: 'Username is already taken' });
+  }
+
+  const newUser = {
+    id: `USR-${Math.floor(100 + Math.random() * 900)}`,
+    username,
+    password,
+    fullName,
+    role,
+    createdDate: new Date().toISOString().split('T')[0]
+  };
+
+  db.users.push(newUser);
+  saveDB(db);
+
+  addAuditLog((req as any).user.username, `Provisioned Admin Account: ${username} (${fullName})`);
+  res.json(newUser);
+});
+
+// DELETE dynamic users
+app.delete('/api/users/:id', checkAuth, (req, res) => {
+  if ((req as any).user.role !== 'Admin') {
+    return res.status(403).json({ error: 'Only administrators have security privileges to manage accounts' });
+  }
+
+  const db = getDB();
+  const { id } = req.params;
+  
+  db.users = db.users || [];
+  const initialLen = db.users.length;
+  const targetUser = db.users.find((u: any) => u.id === id);
+  db.users = db.users.filter((u: any) => u.id !== id);
+  
+  if (db.users.length === initialLen) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  
+  saveDB(db);
+  addAuditLog((req as any).user.username, `Revoked User Account ID: ${id} (${targetUser?.username})`);
+  res.json({ success: true });
 });
 
 
