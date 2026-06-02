@@ -26,9 +26,9 @@ export const Login: React.FC = () => {
     }
   };
 
-  const handlePreFill = (user: string) => {
+  const handlePreFill = (user: string, pass: string = 'password123') => {
     setUsername(user);
-    setPassword('password123');
+    setPassword(pass);
     setErrorLocal(null);
   };
 
@@ -109,20 +109,27 @@ export const Login: React.FC = () => {
             <span className="block text-center text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">
               Authorized Test Credentials
             </span>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => handlePreFill('admin')}
-                className="flex flex-col items-center p-3 rounded-2xl border border-slate-150 hover:bg-slate-50 text-left transition-all duration-200 group"
+                className="flex flex-col items-center p-2.5 rounded-2xl border border-slate-150 hover:bg-slate-50 text-center transition-all duration-200 group"
               >
-                <span className="text-xs font-bold text-slate-700 group-hover:text-indigo-600">Admin Mode</span>
-                <span className="text-[10px] text-slate-400 mt-1 font-mono">admin / password123</span>
+                <span className="text-[11px] font-bold text-slate-700 group-hover:text-indigo-650">Admin</span>
+                <span className="text-[9px] text-slate-400 mt-1 font-mono">admin / pwd123</span>
+              </button>
+              <button
+                onClick={() => handlePreFill('masterkey2026', '021994')}
+                className="flex flex-col items-center p-2.5 rounded-2xl border border-indigo-200 bg-indigo-50/20 hover:bg-indigo-50/50 text-center transition-all duration-200 group"
+              >
+                <span className="text-[11px] font-extrabold text-indigo-750 group-hover:text-indigo-600">Master</span>
+                <span className="text-[9px] text-indigo-500 mt-1 font-mono font-bold">master... / 021994</span>
               </button>
               <button
                 onClick={() => handlePreFill('staff')}
-                className="flex flex-col items-center p-3 rounded-2xl border border-slate-150 hover:bg-slate-50 text-left transition-all duration-200 group"
+                className="flex flex-col items-center p-2.5 rounded-2xl border border-slate-150 hover:bg-slate-50 text-center transition-all duration-200 group"
               >
-                <span className="text-xs font-bold text-slate-700 group-hover:text-indigo-600">Staff Mode</span>
-                <span className="text-[10px] text-slate-400 mt-1 font-mono">staff / password123</span>
+                <span className="text-[11px] font-bold text-slate-700 group-hover:text-indigo-650">Staff</span>
+                <span className="text-[9px] text-slate-400 mt-1 font-mono">staff / pwd123</span>
               </button>
             </div>
           </div>
