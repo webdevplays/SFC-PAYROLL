@@ -11,6 +11,11 @@ export default defineConfig(() => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    define: {
+      'process.env.SPREADSHEET_ID': JSON.stringify(process.env.SPREADSHEET_ID || ''),
+      'process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL': JSON.stringify(process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || ''),
+      'process.env.GOOGLE_PRIVATE_KEY': JSON.stringify(process.env.GOOGLE_PRIVATE_KEY || ''),
+    },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
