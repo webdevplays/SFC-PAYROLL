@@ -1,0 +1,11 @@
+# netlify.toml
+# Configuration for Netlify Serverless Deployment targets
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/server/:splat"
+  status = 200

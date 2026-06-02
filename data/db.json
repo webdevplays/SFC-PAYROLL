@@ -1,0 +1,211 @@
+{
+  "employees": [
+    {
+      "id": "EMP-101",
+      "fullName": "Juan dela Cruz",
+      "position": "Field Supervisor",
+      "address": "123 Mabini Street, Barangay Maligaya, Cabanatuan City",
+      "createdDate": "2026-05-01"
+    },
+    {
+      "id": "EMP-102",
+      "fullName": "Maria Santos",
+      "position": "Survey Leader",
+      "address": "456 Rizal Boulevard, Quezon City",
+      "createdDate": "2026-05-02"
+    },
+    {
+      "id": "EMP-103",
+      "fullName": "Antonio Luna",
+      "position": "Survey Co-Leader",
+      "address": "789 Bonifacio Street, Pasig City",
+      "createdDate": "2026-05-02"
+    },
+    {
+      "id": "EMP-104",
+      "fullName": "Melchora Aquino",
+      "position": "Survey Leader",
+      "address": "202 Tandang Sora Avenue, Quezon City",
+      "createdDate": "2026-05-03"
+    },
+    {
+      "id": "EMP-105",
+      "fullName": "Andres Bonifacio",
+      "position": "Survey Co-Leader",
+      "address": "303 Tondo, Manila",
+      "createdDate": "2026-05-03"
+    },
+    {
+      "id": "EMP-106",
+      "fullName": "Jose Rizal",
+      "position": "Lead Enumerator",
+      "address": "101 Calamba Street, Laguna",
+      "createdDate": "2026-05-04"
+    },
+    {
+      "id": "EMP-107",
+      "fullName": "Gabriela Silang",
+      "position": "Field Surveyor",
+      "address": "404 Vigan Boulevard, Ilocos Sur",
+      "createdDate": "2026-05-05"
+    }
+  ],
+  "barangays": [
+    {
+      "id": "BGY-001",
+      "barangayName": "Barangay Central",
+      "municipality": "Quezon City",
+      "province": "Metro Manila",
+      "createdDate": "2026-05-01"
+    },
+    {
+      "id": "BGY-002",
+      "barangayName": "Barangay San Jose",
+      "municipality": "Pasig City",
+      "province": "Metro Manila",
+      "createdDate": "2026-05-02"
+    },
+    {
+      "id": "BGY-003",
+      "barangayName": "Barangay Maligaya",
+      "municipality": "Cabanatuan City",
+      "province": "Nueva Ecija",
+      "createdDate": "2026-05-02"
+    },
+    {
+      "id": "BGY-004",
+      "barangayName": "Barangay Bagong Pag-asa",
+      "municipality": "Quezon City",
+      "province": "Metro Manila",
+      "createdDate": "2026-05-03"
+    }
+  ],
+  "groups": [
+    {
+      "id": "GRP-001",
+      "groupName": "Alpha Surveyors",
+      "leaderId": "EMP-102",
+      "coLeaderId": "EMP-103",
+      "rate": 15,
+      "barangayAssigned": "Barangay Central",
+      "addressDesignated": "Sector 1A, Central District, Quezon City",
+      "status": "Active"
+    },
+    {
+      "id": "GRP-002",
+      "groupName": "Beta Enumerators",
+      "leaderId": "EMP-104",
+      "coLeaderId": "EMP-105",
+      "rate": 18,
+      "barangayAssigned": "Barangay San Jose",
+      "addressDesignated": "Zone 5, San Jose Riverside, Pasig City",
+      "status": "Active"
+    },
+    {
+      "id": "GRP-003",
+      "groupName": "Gamma Field Team",
+      "leaderId": "EMP-106",
+      "coLeaderId": "EMP-107",
+      "rate": 20,
+      "barangayAssigned": "Barangay Maligaya",
+      "addressDesignated": "Purok 4, Maligaya, Cabanatuan City",
+      "status": "Active"
+    }
+  ],
+  "surveys": [
+    {
+      "id": "SRV-201",
+      "date": "2026-06-01",
+      "barangay": "Barangay Central",
+      "groupId": "GRP-001",
+      "populationCount": 350,
+      "rate": 15,
+      "totalPayout": 5250,
+      "createdBy": "admin",
+      "createdDate": "2026-06-01"
+    },
+    {
+      "id": "SRV-202",
+      "date": "2026-06-02",
+      "barangay": "Barangay San Jose",
+      "groupId": "GRP-002",
+      "populationCount": 450,
+      "rate": 18,
+      "totalPayout": 8100,
+      "createdBy": "staff",
+      "createdDate": "2026-06-02"
+    },
+    {
+      "id": "SRV-203",
+      "date": "2026-06-02",
+      "barangay": "Barangay Maligaya",
+      "groupId": "GRP-003",
+      "populationCount": 280,
+      "rate": 20,
+      "totalPayout": 5600,
+      "createdBy": "admin",
+      "createdDate": "2026-06-02"
+    }
+  ],
+  "settlements": [
+    {
+      "id": "SET-001",
+      "settlementDate": "2026-05-25",
+      "fromDate": "2026-05-01",
+      "toDate": "2026-05-20",
+      "totalAmount": 14700,
+      "remarks": "First half of May 2026 surveys payout settlement."
+    }
+  ],
+  "paidPayroll": [
+    {
+      "id": "PPD-001",
+      "settlementId": "SET-001",
+      "surveyId": "SRV-101",
+      "groupName": "Alpha Surveyors",
+      "barangay": "Barangay Central",
+      "populationCount": 500,
+      "rate": 15,
+      "totalPayout": 7500,
+      "paidDate": "2026-05-25"
+    },
+    {
+      "id": "PPD-002",
+      "settlementId": "SET-001",
+      "surveyId": "SRV-102",
+      "groupName": "Beta Enumerators",
+      "barangay": "Barangay San Jose",
+      "populationCount": 400,
+      "rate": 18,
+      "totalPayout": 7200,
+      "paidDate": "2026-05-25"
+    }
+  ],
+  "auditLogs": [
+    {
+      "id": "LOG-001",
+      "user": "System",
+      "action": "Database initialized with rich sample field survey data.",
+      "timestamp": "2026-05-01T08:00:00Z"
+    },
+    {
+      "id": "LOG-002",
+      "user": "admin",
+      "action": "Login successful - Role: Admin",
+      "timestamp": "2026-05-25T09:12:00Z"
+    },
+    {
+      "id": "LOG-003",
+      "user": "admin",
+      "action": "Processed settlement SET-001 for amount 14,700.00 PHP",
+      "timestamp": "2026-05-25T15:30:00Z"
+    }
+  ],
+  "sheetConfig": {
+    "spreadsheetId": "",
+    "clientId": "",
+    "clientEmail": "",
+    "privateKey": "",
+    "isSyncEnabled": false
+  }
+}

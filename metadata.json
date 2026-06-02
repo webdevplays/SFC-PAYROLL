@@ -1,0 +1,6 @@
+{
+  "name": "Field Survey Payroll Management System",
+  "description": "A comprehensive payroll, group assigned survey tracking, and settlement management system for field survey groups and employees.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
