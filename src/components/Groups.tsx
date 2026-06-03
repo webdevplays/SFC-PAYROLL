@@ -32,28 +32,30 @@ export const Groups: React.FC = () => {
   const [coLeaderSearch, setCoLeaderSearch] = useState('');
   const [filterByResidency, setFilterByResidency] = useState(true);
 
-  // Filter leaders / co-leaders for dropdowns (All employees are shown as selectable, with matching roles prioritized at the top)
-  const leadersList = [...employees].sort((a, b) => {
-    const aPos = a.position.toLowerCase();
-    const bPos = b.position.toLowerCase();
-    const aIsLeader = (aPos.includes('leader') && !aPos.includes('co-')) || aPos.includes('lead') || aPos.includes('supervisor');
-    const bIsLeader = (bPos.includes('leader') && !bPos.includes('co-')) || bPos.includes('lead') || bPos.includes('supervisor');
-    
-    if (aIsLeader && !bIsLeader) return -1;
-    if (!aIsLeader && bIsLeader) return 1;
-    return a.fullName.localeCompare(b.fullName);
-  });
+  // Filter leaders: only actual leaders, and only those not yet assigned to any group (except the current one being edited)
+  const leadersList = employees
+    .filter((e) => {
+      const pos = e.position.toLowerCase();
+      const isLeader = (pos.includes('leader') && !pos.includes('co-')) || pos.includes('lead') || pos.includes('supervisor');
+      if (!isLeader) return false;
+      
+      const isAlreadyAssigned = groups.some((g) => g.leaderId === e.id && g.id !== editingId);
+      return !isAlreadyAssigned;
+    })
+    .sort((a, b) => a.fullName.localeCompare(b.fullName));
 
-  const coLeadersList = [...employees].sort((a, b) => {
-    const aPos = a.position.toLowerCase();
-    const bPos = b.position.toLowerCase();
-    const aIsCo = aPos.includes('co-') || aPos.includes('surveyor') || aPos.includes('enumerator') || aPos.includes('others');
-    const bIsCo = bPos.includes('co-') || bPos.includes('surveyor') || bPos.includes('enumerator') || bPos.includes('others');
-    
-    if (aIsCo && !bIsCo) return -1;
-    if (!aIsCo && bIsCo) return 1;
-    return a.fullName.localeCompare(b.fullName);
-  });
+  // Filter co-leaders: only actual co-leaders/surveyors/enumerators/etc. (excluding main leaders)
+  const coLeadersList = employees
+    .filter((e) => {
+      const pos = e.position.toLowerCase();
+      // Ensure we don't treat main leaders as co-leaders
+      const isLeader = (pos.includes('leader') && !pos.includes('co-')) || pos.includes('lead') || pos.includes('supervisor');
+      if (isLeader) return false;
+
+      const isCo = pos.includes('co-') || pos.includes('surveyor') || pos.includes('enumerator') || pos.includes('others');
+      return isCo;
+    })
+    .sort((a, b) => a.fullName.localeCompare(b.fullName));
 
   const getBarangayFromAddress = (addr: string) => {
     if (!addr) return '';
@@ -300,16 +302,13 @@ export const Groups: React.FC = () => {
                 >
                   <option value="">Select official Leader...</option>
                   {leadersList.length === 0 ? (
-                    <option disabled value="">No Survey Leaders in employees table database</option>
+                    <option disabled value="">No unassigned Survey Leaders available</option>
                   ) : (
-                    leadersList.map((e) => {
-                      const assignedGroup = groups.find((g) => g.leaderId === e.id && g.id !== editingId);
-                      return (
-                        <option key={e.id} value={e.id} disabled={!!assignedGroup}>
-                          {e.fullName} ({e.id}){assignedGroup ? ` [Already assigned as Leader to "${assignedGroup.groupName}"]` : ''}
-                        </option>
-                      );
-                    })
+                    leadersList.map((e) => (
+                      <option key={e.id} value={e.id}>
+                        {e.fullName} ({e.id})
+                      </option>
+                    ))
                   )}
                 </select>
                 {formError && (
