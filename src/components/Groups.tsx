@@ -29,6 +29,7 @@ export const Groups: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
   const [coLeaderSearch, setCoLeaderSearch] = useState('');
+  const [filterByResidency, setFilterByResidency] = useState(true);
 
   // Filter leaders / co-leaders for dropdowns (All employees are shown as selectable, with matching roles prioritized at the top)
   const leadersList = [...employees].sort((a, b) => {
@@ -55,15 +56,34 @@ export const Groups: React.FC = () => {
 
   const getBarangayFromAddress = (addr: string) => {
     if (!addr) return '';
-    return addr.split(',')[0].trim();
+    const cleanAddr = addr.toLowerCase();
+    
+    // 1. Try to find any known barangay name from our database
+    for (const b of barangays) {
+      const bgyName = b.barangayName.toLowerCase().trim();
+      if (bgyName && cleanAddr.includes(bgyName)) {
+        return b.barangayName; // Return styled/capitalized name
+      }
+    }
+    
+    // 2. Fallback to parsing by commas if no known barangay matches
+    const parts = addr.split(',').map(p => p.trim());
+    for (const part of parts) {
+      const pLower = part.toLowerCase();
+      if (pLower.includes('barangay') || pLower.includes('bgy')) {
+        return part.replace(/\b(barangay|bgy)\b\.?/gi, '').trim();
+      }
+    }
+    
+    return parts[0] || '';
   };
 
   const selectedLeaderEmp = employees.find((e) => e.id === leaderId);
-  const finalCoLeadersList = selectedLeaderEmp && selectedLeaderEmp.address
+  const finalCoLeadersList = selectedLeaderEmp && selectedLeaderEmp.address && filterByResidency
     ? coLeadersList.filter((e) => {
-        const leaderBgy = getBarangayFromAddress(selectedLeaderEmp.address).toLowerCase();
-        const empBgy = getBarangayFromAddress(e.address).toLowerCase();
-        return leaderBgy && empBgy && leaderBgy === empBgy;
+        const leaderBgy = getBarangayFromAddress(selectedLeaderEmp.address).toLowerCase().trim();
+        const empBgy = getBarangayFromAddress(e.address).toLowerCase().trim();
+        return leaderBgy && empBgy && (leaderBgy === empBgy || leaderBgy.includes(empBgy) || empBgy.includes(leaderBgy));
       })
     : coLeadersList;
 
@@ -123,6 +143,7 @@ export const Groups: React.FC = () => {
     setStatus('Active');
     setEditingId(null);
     setCoLeaderSearch('');
+    setFilterByResidency(true);
   };
 
   const handleEdit = (grp: Group) => {
@@ -279,13 +300,22 @@ export const Groups: React.FC = () => {
 
               <div className="col-span-1 md:col-span-2">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1.5">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                    Survey Co-Leaders (Select Multiple - Optional) {selectedLeaderEmp && selectedLeaderEmp.address && (
-                      <span className="text-indigo-600 lowercase tracking-normal font-sans font-semibold normal-case block sm:inline sm:ml-1">
-                        (Filtered by {getBarangayFromAddress(selectedLeaderEmp.address)} residency)
-                      </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      Survey Co-Leaders (Select Multiple - Optional)
+                    </label>
+                    {selectedLeaderEmp && selectedLeaderEmp.address && (
+                      <label className="inline-flex items-center gap-1.5 cursor-pointer text-[10px] bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 font-sans font-semibold px-2 py-0.5 rounded-full transition">
+                        <input
+                          type="checkbox"
+                          checked={filterByResidency}
+                          onChange={(e) => setFilterByResidency(e.target.checked)}
+                          className="h-3 w-3 rounded text-indigo-600 focus:ring-indigo-500 border-slate-200 cursor-pointer animate-pulse"
+                        />
+                        <span>Filter by {getBarangayFromAddress(selectedLeaderEmp.address)} Address</span>
+                      </label>
                     )}
-                  </label>
+                  </div>
                   {coLeaderIds.length > 0 && (
                     <span className="text-[10px] text-indigo-600 font-semibold font-sans bg-indigo-50 px-2 py-0.5 rounded-full">
                       {coLeaderIds.length} selected
