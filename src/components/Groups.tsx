@@ -23,6 +23,7 @@ export const Groups: React.FC = () => {
   const [addressDesignated, setAddressDesignated] = useState('');
   const [status, setStatus] = useState<'Active' | 'Inactive'>('Active');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [formError, setFormError] = useState('');
 
   // Search and Pagination
   const [search, setSearch] = useState('');
@@ -102,6 +103,14 @@ export const Groups: React.FC = () => {
     e.preventDefault();
     if (!groupName || !leaderId || !rate || !barangayAssigned) return;
 
+    // Restriction check: No duplicate Leader Official on physical groups
+    const duplicateLeaderGroup = groups.find((g) => g.leaderId === leaderId && g.id !== editingId);
+    if (duplicateLeaderGroup) {
+      const leaderName = employees.find((emp) => emp.id === leaderId)?.fullName || 'Selected Leader';
+      setFormError(`Duplicate Assignment Blocked: "${leaderName}" is already the registered Leader of Group "${duplicateLeaderGroup.groupName}". A Leader can only lead one active field survey group.`);
+      return;
+    }
+
     const firstCoLeaderId = coLeaderIds[0] || '';
 
     if (editingId) {
@@ -144,6 +153,7 @@ export const Groups: React.FC = () => {
     setEditingId(null);
     setCoLeaderSearch('');
     setFilterByResidency(true);
+    setFormError('');
   };
 
   const handleEdit = (grp: Group) => {
@@ -281,7 +291,10 @@ export const Groups: React.FC = () => {
                 </label>
                 <select
                   value={leaderId}
-                  onChange={(e) => setLeaderId(e.target.value)}
+                  onChange={(e) => {
+                    setLeaderId(e.target.value);
+                    setFormError('');
+                  }}
                   className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
                   required
                 >
@@ -289,13 +302,22 @@ export const Groups: React.FC = () => {
                   {leadersList.length === 0 ? (
                     <option disabled value="">No Survey Leaders in employees table database</option>
                   ) : (
-                    leadersList.map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.fullName} ({e.id})
-                      </option>
-                    ))
+                    leadersList.map((e) => {
+                      const assignedGroup = groups.find((g) => g.leaderId === e.id && g.id !== editingId);
+                      return (
+                        <option key={e.id} value={e.id} disabled={!!assignedGroup}>
+                          {e.fullName} ({e.id}){assignedGroup ? ` [Already assigned as Leader to "${assignedGroup.groupName}"]` : ''}
+                        </option>
+                      );
+                    })
                   )}
                 </select>
+                {formError && (
+                  <p className="mt-2 text-xs font-semibold text-rose-600 flex items-center gap-1.5 bg-rose-50 border border-rose-100 p-2.5 rounded-xl">
+                    <ShieldAlert className="h-4 w-4 shrink-0 text-rose-500" />
+                    <span>{formError}</span>
+                  </p>
+                )}
               </div>
 
               <div className="col-span-1 md:col-span-2">
