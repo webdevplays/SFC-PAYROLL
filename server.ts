@@ -1014,6 +1014,33 @@ app.post('/api/surveys', checkAuth, (req, res) => {
 
   const rawCount = Number(populationCount);
   const rawRate = Number(rate);
+
+  // Check if an existing unsettled survey has the same Barangay Area Sector and Leader Name
+  const incomingGroup = (db.groups || []).find((g: any) => g.id === groupId);
+  const incomingLeaderId = incomingGroup ? incomingGroup.leaderId : null;
+
+  if (incomingLeaderId) {
+    const existingSrv = (db.surveys || []).find((s: any) => {
+      if (s.barangay !== barangay) return false;
+      const gObj = (db.groups || []).find((g: any) => g.id === s.groupId);
+      return gObj && gObj.leaderId === incomingLeaderId;
+    });
+
+    if (existingSrv) {
+      const originalCount = existingSrv.populationCount;
+      existingSrv.populationCount += rawCount;
+      existingSrv.totalPayout = existingSrv.populationCount * existingSrv.rate;
+      existingSrv.date = date; // Keep the date updated to the latest conduct date
+      
+      saveDB(db);
+      addAuditLog((req as any).user.username, `Updated previous Survey (ID: ${existingSrv.id}) for leader ID ${incomingLeaderId} in Barangay ${barangay}. Population increased from ${originalCount} to ${existingSrv.populationCount}.`);
+
+      syncDatabaseToGoogleSheets(db).catch(err => console.error("Sheets update minor error during merge:", err.message));
+
+      return res.status(200).json(existingSrv);
+    }
+  }
+
   const survey = {
     id: `SRV-${200 + db.surveys.length + 1}`,
     date,

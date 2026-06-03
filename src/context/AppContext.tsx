@@ -923,6 +923,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsLoading(true);
     if (isFallbackMode) {
       const db = getLocalDB();
+      const incomingGroup = (db.groups || []).find((g: any) => g.id === srv.groupId);
+      const incomingLeaderId = incomingGroup ? incomingGroup.leaderId : null;
+
+      if (incomingLeaderId) {
+        const existingSrv = (db.surveys || []).find((s: any) => {
+          if (s.barangay !== srv.barangay) return false;
+          const gObj = (db.groups || []).find((g: any) => g.id === s.groupId);
+          return gObj && gObj.leaderId === incomingLeaderId;
+        });
+
+        if (existingSrv) {
+          existingSrv.populationCount += Number(srv.populationCount);
+          existingSrv.totalPayout = existingSrv.populationCount * existingSrv.rate;
+          existingSrv.date = srv.date;
+          
+          addLocalAuditLog(db, user?.username || 'unknown', `Merged Count into Survey ID: ${existingSrv.id} for Barangay: ${srv.barangay} (Leader: ${incomingLeaderId})`);
+          await saveAndSyncLocalDB(db);
+          loadLocalState();
+          showToast("Entry aggregated with existing Survey population count successfully!", "success");
+          setIsLoading(false);
+          return;
+        }
+      }
+
       const totalPayout = srv.populationCount * srv.rate;
       const newSrv: Survey = {
         ...srv,

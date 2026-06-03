@@ -260,7 +260,7 @@ export const Payroll: React.FC = () => {
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-                  Assigned Group
+                  Leaders Name base on Barangay Area Sector
                 </label>
                 <select
                   value={selectedGroupId}
@@ -268,12 +268,16 @@ export const Payroll: React.FC = () => {
                   className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium cursor-pointer"
                   required
                 >
-                  <option value="">Select Surveyor Group...</option>
-                  {(selectedBarangay ? groups.filter((g) => g.barangayAssigned === selectedBarangay) : groups).map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.groupName} ({g.barangayAssigned || 'No Sector assigned'})
-                    </option>
-                  ))}
+                  <option value="">Select Leader Name...</option>
+                  {(selectedBarangay ? groups.filter((g) => g.barangayAssigned === selectedBarangay) : groups).map((g) => {
+                    const ldr = employees.find((e) => e.id === g.leaderId);
+                    const ldrName = ldr ? ldr.fullName : 'No Leader Assigned';
+                    return (
+                      <option key={g.id} value={g.id}>
+                        {ldrName} ({g.groupName})
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
