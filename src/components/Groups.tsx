@@ -33,6 +33,20 @@ export const Groups: React.FC = () => {
   const leadersList = employees.filter((e) => e.position === 'Leader' || e.position === 'Survey Leader' || e.position === 'Field Supervisor');
   const coLeadersList = employees.filter((e) => e.position === 'Co-Leader' || e.position === 'Survey Co-Leader' || e.position === 'Field Surveyor' || e.position === 'Lead Enumerator' || e.position.includes('Co-') || e.position.startsWith('Others'));
 
+  const getBarangayFromAddress = (addr: string) => {
+    if (!addr) return '';
+    return addr.split(',')[0].trim();
+  };
+
+  const selectedLeaderEmp = employees.find((e) => e.id === leaderId);
+  const finalCoLeadersList = selectedLeaderEmp && selectedLeaderEmp.address
+    ? coLeadersList.filter((e) => {
+        const leaderBgy = getBarangayFromAddress(selectedLeaderEmp.address).toLowerCase();
+        const empBgy = getBarangayFromAddress(e.address).toLowerCase();
+        return leaderBgy && empBgy && leaderBgy === empBgy;
+      })
+    : coLeadersList;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!groupName || !leaderId || !rate || !barangayAssigned) return;
@@ -233,15 +247,19 @@ export const Groups: React.FC = () => {
 
               <div className="col-span-1 md:col-span-2">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-                  Survey Co-Leaders (Select Multiple - Optional)
+                  Survey Co-Leaders (Select Multiple - Optional) {selectedLeaderEmp && selectedLeaderEmp.address && (
+                    <span className="text-indigo-600 lowercase tracking-normal font-sans font-semibold normal-case">
+                      (Filtered by {getBarangayFromAddress(selectedLeaderEmp.address)} residency)
+                    </span>
+                  )}
                 </label>
                 <div className="border border-slate-200 rounded-xl p-3 max-h-40 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-50/50">
-                  {coLeadersList.length === 0 ? (
+                  {finalCoLeadersList.length === 0 ? (
                     <div className="col-span-2 text-slate-400 text-xs italic p-1">
-                      No Co-Leaders found in database.
+                      {selectedLeaderEmp ? "No Co-Leaders found in the same Barangay designated address." : "No Co-Leaders found in database."}
                     </div>
                   ) : (
-                    coLeadersList.map((e) => {
+                    finalCoLeadersList.map((e) => {
                       const isChecked = coLeaderIds.includes(e.id);
                       return (
                         <label

@@ -269,7 +269,7 @@ export const Payroll: React.FC = () => {
                   required
                 >
                   <option value="">Select Surveyor Group...</option>
-                  {groups.map((g) => (
+                  {(selectedBarangay ? groups.filter((g) => g.barangayAssigned === selectedBarangay) : groups).map((g) => (
                     <option key={g.id} value={g.id}>
                       {g.groupName} ({g.barangayAssigned || 'No Sector assigned'})
                     </option>
