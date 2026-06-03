@@ -35,7 +35,7 @@ export const Groups: React.FC = () => {
   const leadersList = employees
     .filter((e) => {
       const pos = e.position.toLowerCase();
-      const isLeader = (pos.includes('leader') && !pos.includes('co-')) || pos.includes('lead') || pos.includes('supervisor');
+      const isLeader = (pos.includes('leader') && !pos.includes('co-')) || (pos.includes('lead') && !pos.includes('co-')) || pos.includes('supervisor');
       if (!isLeader) return false;
       
       const isAlreadyAssigned = groups.some((g) => g.leaderId === e.id && g.id !== editingId);
@@ -48,11 +48,10 @@ export const Groups: React.FC = () => {
     .filter((e) => {
       const pos = e.position.toLowerCase();
       // Ensure we don't treat main leaders as co-leaders
-      const isLeader = (pos.includes('leader') && !pos.includes('co-')) || pos.includes('lead') || pos.includes('supervisor');
+      const isLeader = (pos.includes('leader') && !pos.includes('co-')) || (pos.includes('lead') && !pos.includes('co-')) || pos.includes('supervisor');
       if (isLeader) return false;
 
-      const isCo = pos.includes('co-') || pos.includes('surveyor') || pos.includes('enumerator') || pos.includes('others');
-      return isCo;
+      return true;
     })
     .sort((a, b) => a.fullName.localeCompare(b.fullName));
 
