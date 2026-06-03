@@ -29,18 +29,27 @@ export const Groups: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // Filter leaders / co-leaders for dropdowns
-  const leadersList = employees.filter((e) => {
-    const pos = e.position.toLowerCase();
-    const isLeaderWord = pos.includes('leader') && !pos.includes('co-');
-    const isLeadWord = pos.includes('lead') && !pos.includes('co-');
-    const isSupervisor = pos.includes('supervisor');
-    return isLeaderWord || isLeadWord || isSupervisor || e.id === leaderId;
+  // Filter leaders / co-leaders for dropdowns (All employees are shown as selectable, with matching roles prioritized at the top)
+  const leadersList = [...employees].sort((a, b) => {
+    const aPos = a.position.toLowerCase();
+    const bPos = b.position.toLowerCase();
+    const aIsLeader = (aPos.includes('leader') && !aPos.includes('co-')) || aPos.includes('lead') || aPos.includes('supervisor');
+    const bIsLeader = (bPos.includes('leader') && !bPos.includes('co-')) || bPos.includes('lead') || bPos.includes('supervisor');
+    
+    if (aIsLeader && !bIsLeader) return -1;
+    if (!aIsLeader && bIsLeader) return 1;
+    return a.fullName.localeCompare(b.fullName);
   });
-  const coLeadersList = employees.filter((e) => {
-    const pos = e.position.toLowerCase();
-    const isCoLeader = pos.includes('co-') || pos.includes('surveyor') || pos.includes('enumerator') || pos.includes('others');
-    return isCoLeader || coLeaderIds.includes(e.id);
+
+  const coLeadersList = [...employees].sort((a, b) => {
+    const aPos = a.position.toLowerCase();
+    const bPos = b.position.toLowerCase();
+    const aIsCo = aPos.includes('co-') || aPos.includes('surveyor') || aPos.includes('enumerator') || aPos.includes('others');
+    const bIsCo = bPos.includes('co-') || bPos.includes('surveyor') || bPos.includes('enumerator') || bPos.includes('others');
+    
+    if (aIsCo && !bIsCo) return -1;
+    if (!aIsCo && bIsCo) return 1;
+    return a.fullName.localeCompare(b.fullName);
   });
 
   const getBarangayFromAddress = (addr: string) => {
