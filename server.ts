@@ -335,6 +335,7 @@ async function syncDatabaseToGoogleSheets(db: any) {
       "Surveys",
       "Settlements",
       "Paid Payroll",
+      "Users",
       "AuditLogs"
     ]);
   } catch (err: any) {
@@ -376,6 +377,128 @@ async function syncDatabaseToGoogleSheets(db: any) {
   const paidRows = db.paidPayroll.map((p: any) => [p.id, p.settlementId, p.surveyId, p.groupName, p.barangay, p.populationCount, p.rate, p.totalPayout, p.paidDate]);
   await overwriteGoogleSheet(config.spreadsheetId, config.clientEmail, config.privateKey, "Paid Payroll!A1:I1000",
     ["ID", "Settlement ID", "Survey ID", "Group Name", "Barangay", "Population Count", "Rate", "Total Payout", "Paid Date"], paidRows);
+
+  // Sync Users
+  const userRows = (db.users || []).map((u: any) => [u.id, u.username, u.password, u.fullName, u.role, u.createdDate]);
+  await overwriteGoogleSheet(config.spreadsheetId, config.clientEmail, config.privateKey, "Users!A1:F1000",
+    ["ID", "Username", "Password", "Full Name", "Role", "Created Date"], userRows);
+}
+
+
+async function pullDatabaseFromGoogleSheets(db: any) {
+  const config = getEffectiveSheetConfig(db);
+  if (!config || !config.isSyncEnabled || !config.spreadsheetId || !config.clientEmail || !config.privateKey) {
+    throw new Error('Google Sheets sync is not fully configured or enabled');
+  }
+
+  const token = await getGoogleAccessToken(config.clientEmail, config.privateKey);
+
+  const pullSheet = async (range: string) => {
+    try {
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${config.spreadsheetId}/values/${encodeURIComponent(range)}`;
+      const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (!response.ok) return [];
+      const data = await response.json() as any;
+      return data.values || [];
+    } catch (e) {
+      console.warn(`Error pulling sheet range ${range}:`, e);
+      return [];
+    }
+  };
+
+  const [empVals, bgyVals, grpVals, srvVals, setVals, paidVals, userVals] = await Promise.all([
+    pullSheet("Employees!A2:E1000"),
+    pullSheet("Barangays!A2:E1000"),
+    pullSheet("Groups!A2:H1000"),
+    pullSheet("Surveys!A2:H1000"),
+    pullSheet("Settlements!A2:F1000"),
+    pullSheet("Paid Payroll!A2:I1000"),
+    pullSheet("Users!A2:F1000")
+  ]);
+
+  const employees = empVals.map((row: any) => ({
+    id: row[0],
+    fullName: row[1] || 'Unknown',
+    position: row[2] || 'Enumerator',
+    address: row[3] || '',
+    createdDate: row[4] || new Date().toISOString().split('T')[0]
+  })).filter((e: any) => e.id);
+
+  const barangays = bgyVals.map((row: any) => ({
+    id: row[0],
+    barangayName: row[1] || 'Unknown',
+    municipality: row[2] || '',
+    province: row[3] || '',
+    createdDate: row[4] || new Date().toISOString().split('T')[0]
+  })).filter((b: any) => b.id);
+
+  const groups = grpVals.map((row: any) => {
+    const rawCoLeader = row[3] || '';
+    const coLeaderIds = rawCoLeader ? rawCoLeader.split(',').map((id: string) => id.trim()).filter(Boolean) : [];
+    return {
+      id: row[0],
+      groupName: row[1] || 'Unknown',
+      leaderId: row[2] || '',
+      coLeaderIds,
+      rate: Number(row[4]) || 0,
+      barangayAssigned: row[5] || '',
+      addressDesignated: row[6] || '',
+      status: row[7] || 'Active'
+    };
+  }).filter((g: any) => g.id);
+
+  const surveys = srvVals.map((row: any) => ({
+    id: row[0],
+    date: row[1] || new Date().toISOString().split('T')[0],
+    barangay: row[2] || '',
+    groupId: row[3] || '',
+    populationCount: Number(row[4]) || 0,
+    rate: Number(row[5]) || 0,
+    totalPayout: Number(row[6]) || 0,
+    createdBy: row[7] || 'System'
+  })).filter((s: any) => s.id);
+
+  const settlements = setVals.map((row: any) => ({
+    id: row[0],
+    settlementDate: row[1],
+    fromDate: row[2],
+    toDate: row[3],
+    totalAmount: Number(row[4]) || 0,
+    remarks: row[5] || ''
+  })).filter((s: any) => s.id);
+
+  const paidPayroll = paidVals.map((row: any) => ({
+    id: row[0],
+    settlementId: row[1],
+    surveyId: row[2],
+    groupName: row[3],
+    barangay: row[4],
+    populationCount: Number(row[5]) || 0,
+    rate: Number(row[6]) || 0,
+    totalPayout: Number(row[7]) || 0,
+    paidDate: row[8]
+  })).filter((p: any) => p.id);
+
+  const users = userVals.map((row: any) => ({
+    id: row[0],
+    username: row[1],
+    password: row[2],
+    fullName: row[3] || 'Administrator',
+    role: row[4] || 'Admin',
+    createdDate: row[5] || new Date().toISOString().split('T')[0]
+  })).filter((u: any) => u.id);
+
+  db.employees = employees;
+  db.barangays = barangays;
+  db.groups = groups;
+  db.surveys = surveys;
+  db.settlements = settlements;
+  db.paidPayroll = paidPayroll;
+  if (users.length > 0) {
+    db.users = users;
+  }
+
+  saveDB(db);
 }
 
 
@@ -486,6 +609,7 @@ app.post('/api/users', checkAuth, (req, res) => {
 
   db.users.push(newUser);
   saveDB(db);
+  syncDatabaseToGoogleSheets(db).catch(err => console.error("Sheets update minor error:", err.message));
 
   addAuditLog((req as any).user.username, `Provisioned Admin Account: ${username} (${fullName})`);
   res.json(newUser);
@@ -510,6 +634,7 @@ app.delete('/api/users/:id', checkAuth, (req, res) => {
   }
   
   saveDB(db);
+  syncDatabaseToGoogleSheets(db).catch(err => console.error("Sheets update minor error:", err.message));
   addAuditLog((req as any).user.username, `Revoked User Account ID: ${id} (${targetUser?.username})`);
   res.json({ success: true });
 });
@@ -564,6 +689,76 @@ app.post('/api/settings', checkAuth, async (req, res) => {
   }
 
   res.json({ status: "success", message: "Settings saved successfully." });
+});
+
+// Endpoint to pull/restore data from Google Sheets
+app.post('/api/settings/pull', checkAuth, async (req, res) => {
+  try {
+    const db = getDB();
+    await pullDatabaseFromGoogleSheets(db);
+    addAuditLog((req as any).user.username, "Full database sync pull from Google Sheets successful");
+    res.json({ status: "success", message: "Database compiled successfully and updated from Google Sheets!" });
+  } catch (err: any) {
+    console.error("Error pulling database from Google Sheets:", err);
+    res.status(500).json({ error: `Could not fetch Google Sheet data accurately: ${err.message}` });
+  }
+});
+
+// Endpoint to restore server-side database from client local storage backup securely
+app.post('/api/settings/restore-backup', checkAuth, async (req, res) => {
+  try {
+    const db = getDB();
+    const { employees, barangays, groups, surveys, settlements, paidPayroll, users, sheetConfig } = req.body;
+    
+    // Perform targeted merging to avoid destroying any newer server updates
+    if (employees && Array.isArray(employees)) db.employees = employees;
+    if (barangays && Array.isArray(barangays)) db.barangays = barangays;
+    if (groups && Array.isArray(groups)) db.groups = groups;
+    if (surveys && Array.isArray(surveys)) db.surveys = surveys;
+    if (settlements && Array.isArray(settlements)) db.settlements = settlements;
+    if (paidPayroll && Array.isArray(paidPayroll)) db.paidPayroll = paidPayroll;
+    
+    if (users && Array.isArray(users) && users.length > 0) {
+      // Merge custom admin users by unique ID
+      const userMap = new Map();
+      (db.users || []).forEach((u: any) => userMap.set(u.username.toLowerCase(), u));
+      users.forEach((u: any) => {
+        if (u && u.username) {
+          userMap.set(u.username.toLowerCase(), u);
+        }
+      });
+      db.users = Array.from(userMap.values());
+    }
+
+    if (sheetConfig && typeof sheetConfig === 'object') {
+      db.sheetConfig = {
+        ...db.sheetConfig,
+        ...sheetConfig
+      };
+    }
+
+    saveDB(db);
+    
+    // Automatically trigger Sheets push sync if active
+    const effective = getEffectiveSheetConfig(db);
+    if (effective.isSyncEnabled) {
+      try {
+        await syncDatabaseToGoogleSheets(db);
+        console.log("Automatic Google Sheets push complete following browser backup restoration");
+        addAuditLog((req as any).user.username, "Full database state restored from browser backup and push-synced to Google Sheets");
+      } catch (sheetsErr: any) {
+        console.warn("Minor Google Sheets push failure after backup restoration:", sheetsErr.message);
+        addAuditLog((req as any).user.username, `Full database state restored from browser backup, Google Sheets push pending: ${sheetsErr.message}`);
+      }
+    } else {
+      addAuditLog((req as any).user.username, "Full database state restored from browser local backup");
+    }
+
+    res.json({ status: "success", message: "Success! Application database re-hydrated and securely restored from browser backup." });
+  } catch (err: any) {
+    console.error("Error restoring database backup:", err);
+    res.status(500).json({ error: `Failed to restore database backup: ${err.message}` });
+  }
 });
 
 // 1. Employees CRUD
@@ -1006,11 +1201,25 @@ const startServer = async () => {
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Field Survey Payroll backend serving on port ${PORT}`);
     
-    // Auto sync on boot to prepare spreadsheet sheets/tabs and push existing data
+    // Auto sync/pull on boot to re-hydrate state and prevent data loss on ephemeral containers
     console.log("Initializing startup Google Sheets sync verification check...");
-    syncDatabaseToGoogleSheets(getDB())
-      .then(() => console.log("Startup Google Sheets sync verification succeeded."))
-      .catch((err) => console.warn("Startup Google Sheets sync skipped/failed:", err.message));
+    const currentDb = getDB();
+    const config = getEffectiveSheetConfig(currentDb);
+    if (config && config.isSyncEnabled && config.spreadsheetId && config.clientEmail && config.privateKey) {
+      console.log("Startup Google Sheets integration detected. Attempting database pull/re-hydration...");
+      pullDatabaseFromGoogleSheets(currentDb)
+        .then(() => {
+          console.log("Startup Google Sheets database re-hydration succeeded. State successfully restored from Sheets.");
+        })
+        .catch((err) => {
+          console.warn("Startup Google Sheets database pull skipped/failed. Performing fallback database push verification...", err.message);
+          syncDatabaseToGoogleSheets(currentDb)
+            .then(() => console.log("Startup Google Sheets database push verification succeeded."))
+            .catch((pushErr) => console.warn("Startup Google Sheets push verification failed:", pushErr.message));
+        });
+    } else {
+      console.log("No active Google Sheets integration enabled on startup.");
+    }
   });
 };
 

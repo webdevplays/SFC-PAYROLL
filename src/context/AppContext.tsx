@@ -5,7 +5,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Employee, Barangay, Group, Survey, Settlement, PaidPayroll, AuditLog, User, SheetConfig, UserCredentials } from '../types';
-import { syncDatabaseToGoogleSheetsClient, tryAppendToGoogleSheetClient } from '../utils/clientSync';
+import { syncDatabaseToGoogleSheetsClient, tryAppendToGoogleSheetClient, pullDatabaseFromGoogleSheetsClient } from '../utils/clientSync';
 
 const base64EncodeString = (str: string) => {
   return btoa(unescape(encodeURIComponent(str)));
@@ -114,6 +114,7 @@ interface AppContextType {
   
   addSettlement: (fromDate: string, toDate: string, remarks: string) => Promise<boolean>;
   saveSettings: (config: SheetConfig) => Promise<boolean>;
+  pullFromSheets: () => Promise<boolean>;
   
   // UI Utilities
   navigate: (tab: string) => void;
@@ -219,9 +220,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       
       const db = getLocalDB();
       if (db.sheetConfig && db.sheetConfig.isSyncEnabled) {
-        syncDatabaseToGoogleSheetsClient(db, db.sheetConfig).catch((err) => {
-          console.warn("[Client Sync] Startup sheet sync skipped/failed:", err.message);
-        });
+        // If the local database is cold (empty) on this device, pull/hydrate instead of pushing! This prevents blank overrides.
+        const isLocalCold = (!db.employees || db.employees.length === 0) && (!db.users || db.users.length === 0);
+        if (isLocalCold) {
+          console.log("[Client Bootstrap] Cold start detected in offline mode. Pulling state from Google Sheets...");
+          pullDatabaseFromGoogleSheetsClient(db.sheetConfig)
+            .then((restored) => {
+              db.employees = restored.employees;
+              db.barangays = restored.barangays;
+              db.groups = restored.groups;
+              db.surveys = restored.surveys;
+              db.settlements = restored.settlements;
+              db.paidPayroll = restored.paidPayroll;
+              if (restored.users && restored.users.length > 0) {
+                db.users = restored.users;
+              }
+              const auditDb = getLocalDB();
+              auditDb.employees = restored.employees;
+              auditDb.barangays = restored.barangays;
+              auditDb.groups = restored.groups;
+              auditDb.surveys = restored.surveys;
+              auditDb.settlements = restored.settlements;
+              auditDb.paidPayroll = restored.paidPayroll;
+              auditDb.users = restored.users;
+              saveLocalDB(auditDb);
+              loadLocalState();
+              console.log("[Client Bootstrap] Cold re-hydration from Google Sheets completed successfully!");
+            })
+            .catch((err) => {
+              console.warn("[Client Bootstrap] Cold re-hydration failed, skipping:", err.message);
+            });
+        } else {
+          syncDatabaseToGoogleSheetsClient(db, db.sheetConfig).catch((err) => {
+            console.warn("[Client Sync] Startup sheet sync skipped/failed:", err.message);
+          });
+        }
       }
       return;
     }
@@ -245,15 +278,85 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         throw new Error("Express backend returned terminal API 404 or connection rejected");
       }
 
-      if (empRes.ok) setEmployees(await empRes.json());
-      if (bgyRes.ok) setBarangays(await bgyRes.json());
-      if (grpRes.ok) setGroups(await grpRes.json());
-      if (srvRes.ok) setSurveys(await srvRes.json());
-      if (setRes.ok) setSettlements(await setRes.json());
-      if (paidRes.ok) setPaidPayroll(await paidRes.json());
-      if (logRes.ok) setAuditLogs(await logRes.json());
-      if (settingsRes.ok) setSheetConfig(await settingsRes.json());
-      if (usersRes && usersRes.ok) setUsers(await usersRes.json());
+      // Read responses safely
+      const fetchedEmployees = empRes.ok ? await empRes.json() : [];
+      const fetchedBarangays = bgyRes.ok ? await bgyRes.json() : [];
+      const fetchedGroups = grpRes.ok ? await grpRes.json() : [];
+      const fetchedSurveys = srvRes.ok ? await srvRes.json() : [];
+      const fetchedSettlements = setRes.ok ? await setRes.json() : [];
+      const fetchedPaidPayroll = paidRes.ok ? await paidRes.json() : [];
+      const fetchedAuditLogs = logRes.ok ? await logRes.json() : [];
+      const fetchedSheetConfig = settingsRes.ok ? await settingsRes.json() : null;
+      const fetchedUsers = (usersRes && usersRes.ok) ? await usersRes.json() : [];
+
+      const localDB = getLocalDB();
+
+      // Check if server database has been wiped (which happens during redeployment/update of ephemeral containers)
+      const isServerEmpty = fetchedEmployees.length === 0 && fetchedBarangays.length === 0 && fetchedGroups.length === 0 && fetchedUsers.length === 0;
+      const hasLocalBackup = (localDB.employees && localDB.employees.length > 0) || (localDB.users && localDB.users.length > 0) || (localDB.sheetConfig && localDB.sheetConfig.isSyncEnabled && !!localDB.sheetConfig.spreadsheetId);
+
+      if (isServerEmpty && hasLocalBackup) {
+        console.log("[Auto-Restore] Empty backend database detected. Re-hydrating server-side state from client local backup...");
+        try {
+          const restoreRes = await fetch('/api/settings/restore-backup', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              employees: localDB.employees,
+              barangays: localDB.barangays,
+              groups: localDB.groups,
+              surveys: localDB.surveys,
+              settlements: localDB.settlements,
+              paidPayroll: localDB.paidPayroll,
+              users: localDB.users,
+              sheetConfig: localDB.sheetConfig
+            })
+          });
+          if (restoreRes.ok) {
+            showToast("Database state safely restored and synchronized from local device backup!", "success");
+            // Retry fetch to pull newly restored database
+            setTimeout(() => {
+              fetchData();
+            }, 150);
+            return;
+          }
+        } catch (restoreErr) {
+          console.error("[Auto-Restore] Error pre-empting database wipe:", restoreErr);
+        }
+      }
+
+      // Normal application state assignment
+      setEmployees(fetchedEmployees);
+      setBarangays(fetchedBarangays);
+      setGroups(fetchedGroups);
+      setSurveys(fetchedSurveys);
+      setSettlements(fetchedSettlements);
+      setPaidPayroll(fetchedPaidPayroll);
+      setAuditLogs(fetchedAuditLogs);
+      setSheetConfig(fetchedSheetConfig);
+      setUsers(fetchedUsers);
+
+      // Save a local storage backup to protect the database during any future server wipes
+      let mergedSheetConfig = fetchedSheetConfig;
+      if (fetchedSheetConfig && fetchedSheetConfig.privateKey === "••••••••••••••••••••" && localDB.sheetConfig?.privateKey) {
+        mergedSheetConfig = {
+          ...fetchedSheetConfig,
+          privateKey: localDB.sheetConfig.privateKey
+        };
+      }
+
+      const cacheDB = {
+        employees: fetchedEmployees,
+        barangays: fetchedBarangays,
+        groups: fetchedGroups,
+        surveys: fetchedSurveys,
+        settlements: fetchedSettlements,
+        paidPayroll: fetchedPaidPayroll,
+        auditLogs: fetchedAuditLogs,
+        users: fetchedUsers,
+        sheetConfig: mergedSheetConfig || localDB.sheetConfig
+      };
+      saveLocalDB(cacheDB);
 
     } catch (err) {
       console.warn("Express backend unreachable, triggering Local Fallback State: ", err);
@@ -1076,6 +1179,67 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // Function to pull/restore all data from Google Sheets dynamically
+  const pullFromSheets = async (): Promise<boolean> => {
+    setIsLoading(true);
+    if (isFallbackMode) {
+      const db = getLocalDB();
+      if (!db.sheetConfig || !db.sheetConfig.isSyncEnabled) {
+        showToast("Google Sheets sync is not configured or enabled.", "error");
+        setIsLoading(false);
+        return false;
+      }
+      try {
+        showToast("Fetching active state data tables from Google Sheets...", "info");
+        const restoredData = await pullDatabaseFromGoogleSheetsClient(db.sheetConfig);
+        
+        db.employees = restoredData.employees;
+        db.barangays = restoredData.barangays;
+        db.groups = restoredData.groups;
+        db.surveys = restoredData.surveys;
+        db.settlements = restoredData.settlements;
+        db.paidPayroll = restoredData.paidPayroll;
+        if (restoredData.users && restoredData.users.length > 0) {
+          db.users = restoredData.users;
+        }
+
+        addLocalAuditLog(db, user?.username || 'unknown', "Manually pulled and synchronised state from Google Sheets client-side");
+        saveLocalDB(db);
+        loadLocalState();
+        showToast("Database successfully fully loaded and synced from Google Sheets!", "success");
+        setIsLoading(false);
+        return true;
+      } catch (err: any) {
+        showToast(`Could not pull Google Sheet data: ${err.message}`, "error");
+        setIsLoading(false);
+        return false;
+      }
+    }
+
+    try {
+      showToast("Fetching active state from Google Sheets server-side...", "info");
+      const res = await fetch('/api/settings/pull', {
+        method: 'POST',
+        headers: getHeaders()
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message || "Database successfully updated from Google Sheets!", "success");
+        await fetchData();
+        setIsLoading(false);
+        return true;
+      } else {
+        showToast(data.error || "Google Sheets pull request was rejected.", "error");
+        setIsLoading(false);
+        return false;
+      }
+    } catch (e: any) {
+      showToast(`Unable to pull database from Sheets: ${e.message}`, "error");
+      setIsLoading(false);
+      return false;
+    }
+  };
+
   const navigate = (tab: string) => {
     setCurrentTab(tab);
   };
@@ -1115,6 +1279,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       deleteSurvey,
       addSettlement,
       saveSettings,
+      pullFromSheets,
       navigate,
       showToast,
       dismissToast

@@ -33,11 +33,12 @@ import {
   X,
   UserPlus,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  RefreshCw
 } from 'lucide-react';
 
 function AppContent() {
-  const { token, user, logout, currentTab, navigate, isLoading } = useApp();
+  const { token, user, logout, currentTab, navigate, isLoading, pullFromSheets } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [sidebarMinimized, setSidebarMinimized] = React.useState(() => {
     if (typeof window !== 'undefined') {
@@ -202,7 +203,18 @@ function AppContent() {
             )}
 
             {/* Top right session flag indicator */}
-            <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 border border-slate-150 rounded-xl text-[10px] font-mono select-none">
+            <button
+              id="header-pull-sheets-btn"
+              onClick={pullFromSheets}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-800 border border-indigo-150 rounded-xl text-[10px] font-mono font-black tracking-wider uppercase transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs shrink-0 select-none"
+              title="Pull & Sync Database state directly from Google Sheets"
+            >
+              <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+              <span>Sync Sheets Data</span>
+            </button>
+
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-150 rounded-xl text-[10px] font-mono select-none">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
               <span className="text-slate-500 uppercase font-black">Sheets Sync Engine Ready</span>
             </div>
