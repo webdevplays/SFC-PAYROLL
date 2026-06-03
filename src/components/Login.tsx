@@ -26,12 +26,6 @@ export const Login: React.FC = () => {
     }
   };
 
-  const handlePreFill = (user: string, pass: string = 'password123') => {
-    setUsername(user);
-    setPassword(pass);
-    setErrorLocal(null);
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
@@ -108,36 +102,6 @@ export const Login: React.FC = () => {
               </button>
             </div>
           </form>
-
-          {/* Quick tester credentials selector */}
-          <div className="mt-8 border-t border-slate-100 pt-6">
-            <span className="block text-center text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">
-              Authorized Test Credentials
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <button
-                onClick={() => handlePreFill('admin')}
-                className="flex flex-col items-center p-2.5 rounded-2xl border border-slate-150 hover:bg-slate-50 text-center transition-all duration-200 group"
-              >
-                <span className="text-[11px] font-bold text-slate-700 group-hover:text-indigo-650">Admin</span>
-                <span className="text-[9px] text-slate-400 mt-1 font-mono">admin / pwd123</span>
-              </button>
-              <button
-                onClick={() => handlePreFill('masterkey2026', '021994')}
-                className="flex flex-col items-center p-2.5 rounded-2xl border border-indigo-200 bg-indigo-50/20 hover:bg-indigo-50/50 text-center transition-all duration-200 group"
-              >
-                <span className="text-[11px] font-extrabold text-indigo-750 group-hover:text-indigo-600">Master</span>
-                <span className="text-[9px] text-indigo-500 mt-1 font-mono font-bold">master... / 021994</span>
-              </button>
-              <button
-                onClick={() => handlePreFill('staff')}
-                className="flex flex-col items-center p-2.5 rounded-2xl border border-slate-150 hover:bg-slate-50 text-center transition-all duration-200 group"
-              >
-                <span className="text-[11px] font-bold text-slate-700 group-hover:text-indigo-650">Staff</span>
-                <span className="text-[9px] text-slate-400 mt-1 font-mono">staff / pwd123</span>
-              </button>
-            </div>
-          </div>
         </div>
         
         <p className="mt-8 text-center text-xs text-slate-400 font-medium">
