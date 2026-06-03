@@ -35,7 +35,7 @@ export const Groups: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!groupName || !leaderId || coLeaderIds.length === 0 || !rate || !barangayAssigned) return;
+    if (!groupName || !leaderId || !rate || !barangayAssigned) return;
 
     const firstCoLeaderId = coLeaderIds[0] || '';
 
@@ -233,7 +233,7 @@ export const Groups: React.FC = () => {
 
               <div className="col-span-1 md:col-span-2">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-                  Survey Co-Leaders (Select Multiple)
+                  Survey Co-Leaders (Select Multiple - Optional)
                 </label>
                 <div className="border border-slate-200 rounded-xl p-3 max-h-40 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-50/50">
                   {coLeadersList.length === 0 ? (
