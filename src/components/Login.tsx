@@ -35,8 +35,13 @@ export const Login: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="mx-auto h-12 w-12 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-150 text-white">
-          <Shield className="h-6 w-6" id="login-logo-shield" />
+        <div className="mx-auto h-20 w-20 rounded-full bg-white flex items-center justify-center shadow-md p-1 border border-slate-150 overflow-hidden">
+          <img 
+            src="https://www.image2url.com/r2/default/images/1779782151932-e0fcc309-3ed7-4c15-a3fa-1859006492a3.png" 
+            alt="SFC Logo" 
+            className="h-16 w-16 object-contain"
+            referrerPolicy="no-referrer"
+          />
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold tracking-tight text-slate-950">
           Field Survey Payroll

@@ -28,6 +28,7 @@ export const Groups: React.FC = () => {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+  const [coLeaderSearch, setCoLeaderSearch] = useState('');
 
   // Filter leaders / co-leaders for dropdowns (All employees are shown as selectable, with matching roles prioritized at the top)
   const leadersList = [...employees].sort((a, b) => {
@@ -65,6 +66,17 @@ export const Groups: React.FC = () => {
         return leaderBgy && empBgy && leaderBgy === empBgy;
       })
     : coLeadersList;
+
+  const searchedCoLeadersList = finalCoLeadersList.filter((e) => {
+    const q = coLeaderSearch.toLowerCase();
+    return (
+      e.fullName.toLowerCase().includes(q) ||
+      e.id.toLowerCase().includes(q) ||
+      e.position.toLowerCase().includes(q) ||
+      e.address.toLowerCase().includes(q) ||
+      coLeaderIds.includes(e.id)
+    );
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,6 +122,7 @@ export const Groups: React.FC = () => {
     setAddressDesignated('');
     setStatus('Active');
     setEditingId(null);
+    setCoLeaderSearch('');
   };
 
   const handleEdit = (grp: Group) => {
@@ -265,20 +278,51 @@ export const Groups: React.FC = () => {
               </div>
 
               <div className="col-span-1 md:col-span-2">
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-                  Survey Co-Leaders (Select Multiple - Optional) {selectedLeaderEmp && selectedLeaderEmp.address && (
-                    <span className="text-indigo-600 lowercase tracking-normal font-sans font-semibold normal-case">
-                      (Filtered by {getBarangayFromAddress(selectedLeaderEmp.address)} residency)
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1.5">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    Survey Co-Leaders (Select Multiple - Optional) {selectedLeaderEmp && selectedLeaderEmp.address && (
+                      <span className="text-indigo-600 lowercase tracking-normal font-sans font-semibold normal-case block sm:inline sm:ml-1">
+                        (Filtered by {getBarangayFromAddress(selectedLeaderEmp.address)} residency)
+                      </span>
+                    )}
+                  </label>
+                  {coLeaderIds.length > 0 && (
+                    <span className="text-[10px] text-indigo-600 font-semibold font-sans bg-indigo-50 px-2 py-0.5 rounded-full">
+                      {coLeaderIds.length} selected
                     </span>
                   )}
-                </label>
+                </div>
+
+                {/* Inline Search Bar for Co-Leaders */}
+                <div className="relative mb-2">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                    <Search className="h-3.5 w-3.5" />
+                  </span>
+                  <input
+                    type="text"
+                    value={coLeaderSearch}
+                    onChange={(e) => setCoLeaderSearch(e.target.value)}
+                    placeholder="Search co-leaders by name, ID, or position..."
+                    className="w-full pl-9 pr-8 py-1.5 border border-slate-200 rounded-xl text-xs text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium placeholder-slate-400 bg-white"
+                  />
+                  {coLeaderSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setCoLeaderSearch('')}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-[10px] text-slate-400 hover:text-slate-650 font-semibold"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
                 <div className="border border-slate-200 rounded-xl p-3 max-h-40 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-50/50">
-                  {finalCoLeadersList.length === 0 ? (
+                  {searchedCoLeadersList.length === 0 ? (
                     <div className="col-span-2 text-slate-400 text-xs italic p-1">
-                      {selectedLeaderEmp ? "No Co-Leaders found in the same Barangay designated address." : "No Co-Leaders found in database."}
+                      {coLeaderSearch ? "No matching co-leaders found for your search." : (selectedLeaderEmp ? "No Co-Leaders found in the same Barangay designated address." : "No Co-Leaders found in database.")}
                     </div>
                   ) : (
-                    finalCoLeadersList.map((e) => {
+                    searchedCoLeadersList.map((e) => {
                       const isChecked = coLeaderIds.includes(e.id);
                       return (
                         <label

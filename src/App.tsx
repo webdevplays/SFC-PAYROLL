@@ -87,8 +87,13 @@ function AppContent() {
           {/* Main Logo title & Minimize icon */}
           <div className={`flex items-center ${sidebarMinimized ? 'flex-col gap-4' : 'justify-between'} px-2 pt-2`}>
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-extrabold shadow-md shadow-indigo-150 shrink-0">
-                FS
+              <div className="h-10 w-10 rounded-xl bg-white border border-slate-800 flex items-center justify-center p-0.5 shrink-0 overflow-hidden shadow-sm">
+                <img 
+                  src="https://www.image2url.com/r2/default/images/1779782151932-e0fcc309-3ed7-4c15-a3fa-1859006492a3.png" 
+                  alt="SFC Logo" 
+                  className="h-8 w-8 object-contain"
+                  referrerPolicy="no-referrer"
+                />
               </div>
               {!sidebarMinimized && (
                 <div className="transition-all duration-200">
@@ -212,8 +217,13 @@ function AppContent() {
                 {/* Header inside menu logo */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 px-2">
-                    <div className="h-9 w-9 rounded-xl bg-indigo-650 flex items-center justify-center text-white font-extrabold shadow-md">
-                      FS
+                    <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center p-0.5 shrink-0 overflow-hidden shadow-sm">
+                      <img 
+                        src="https://www.image2url.com/r2/default/images/1779782151932-e0fcc309-3ed7-4c15-a3fa-1859006492a3.png" 
+                        alt="SFC Logo" 
+                        className="h-8 w-8 object-contain"
+                        referrerPolicy="no-referrer"
+                      />
                     </div>
                     <div>
                       <span className="block text-sm font-black text-white tracking-tight leading-tight">Field Survey</span>
