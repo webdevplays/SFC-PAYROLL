@@ -30,7 +30,6 @@ export const Groups: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
   const [coLeaderSearch, setCoLeaderSearch] = useState('');
-  const [filterByResidency, setFilterByResidency] = useState(true);
 
   // Filter leaders: only actual leaders, and only those not yet assigned to any group (except the current one being edited)
   const leadersList = employees
@@ -92,17 +91,7 @@ export const Groups: React.FC = () => {
     return parts[0] || '';
   };
 
-  const selectedLeaderEmp = employees.find((e) => e.id === leaderId);
-  const finalCoLeadersList = selectedLeaderEmp && selectedLeaderEmp.address && filterByResidency
-    ? coLeadersList.filter((e) => {
-        // Always preserve currently selected co-leaders
-        if (coLeaderIds.includes(e.id)) return true;
-        
-        const leaderBgy = getBarangayFromAddress(selectedLeaderEmp.address).toLowerCase().trim();
-        const empBgy = getBarangayFromAddress(e.address).toLowerCase().trim();
-        return leaderBgy && empBgy && leaderBgy === empBgy;
-      })
-    : coLeadersList;
+  const finalCoLeadersList = coLeadersList;
 
   const searchedCoLeadersList = finalCoLeadersList.filter((e) => {
     const q = coLeaderSearch.toLowerCase();
@@ -168,7 +157,6 @@ export const Groups: React.FC = () => {
     setStatus('Active');
     setEditingId(null);
     setCoLeaderSearch('');
-    setFilterByResidency(true);
     setFormError('');
   };
 
@@ -339,17 +327,6 @@ export const Groups: React.FC = () => {
                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                       Survey Co-Leaders (Select Multiple - Optional)
                     </label>
-                    {selectedLeaderEmp && selectedLeaderEmp.address && (
-                      <label className="inline-flex items-center gap-1.5 cursor-pointer text-[10px] bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 font-sans font-semibold px-2 py-0.5 rounded-full transition">
-                        <input
-                          type="checkbox"
-                          checked={filterByResidency}
-                          onChange={(e) => setFilterByResidency(e.target.checked)}
-                          className="h-3 w-3 rounded text-indigo-600 focus:ring-indigo-500 border-slate-200 cursor-pointer animate-pulse"
-                        />
-                        <span>Filter by {getBarangayFromAddress(selectedLeaderEmp.address)} Address</span>
-                      </label>
-                    )}
                   </div>
                   {coLeaderIds.length > 0 && (
                     <span className="text-[10px] text-indigo-600 font-semibold font-sans bg-indigo-50 px-2 py-0.5 rounded-full">
@@ -384,7 +361,7 @@ export const Groups: React.FC = () => {
                 <div className="border border-slate-200 rounded-xl p-3 max-h-40 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-50/50">
                   {searchedCoLeadersList.length === 0 ? (
                     <div className="col-span-2 text-slate-400 text-xs italic p-1">
-                      {coLeaderSearch ? "No matching co-leaders found for your search." : (selectedLeaderEmp ? "No Co-Leaders found in the same Barangay designated address." : "No Co-Leaders found in database.")}
+                      {coLeaderSearch ? "No matching co-leaders found for your search." : "No Co-Leaders found in database."}
                     </div>
                   ) : (
                     searchedCoLeadersList.map((e) => {
