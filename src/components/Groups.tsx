@@ -59,18 +59,29 @@ export const Groups: React.FC = () => {
 
   const getBarangayFromAddress = (addr: string) => {
     if (!addr) return '';
-    const cleanAddr = addr.toLowerCase();
+    const cleanAddr = addr.toLowerCase().trim();
     
-    // 1. Try to find any known barangay name from our database
+    // 1. Try exact match of the first comma-separated part first
+    const parts = addr.split(',').map(p => p.trim());
+    const firstPart = parts[0] ? parts[0].toLowerCase() : '';
+    
     for (const b of barangays) {
       const bgyName = b.barangayName.toLowerCase().trim();
+      if (bgyName === firstPart) {
+        return b.barangayName;
+      }
+    }
+
+    // 2. If no exact match on first part, try to find any known barangay name by sorting descending by length to avoid partial matches on shorter substrings
+    const sortedBarangays = [...barangays].sort((a, b) => b.barangayName.length - a.barangayName.length);
+    for (const b of sortedBarangays) {
+      const bgyName = b.barangayName.toLowerCase().trim();
       if (bgyName && cleanAddr.includes(bgyName)) {
-        return b.barangayName; // Return styled/capitalized name
+        return b.barangayName;
       }
     }
     
-    // 2. Fallback to parsing by commas if no known barangay matches
-    const parts = addr.split(',').map(p => p.trim());
+    // 3. Fallback to parsing by commas if no known barangay matches
     for (const part of parts) {
       const pLower = part.toLowerCase();
       if (pLower.includes('barangay') || pLower.includes('bgy')) {
@@ -84,9 +95,12 @@ export const Groups: React.FC = () => {
   const selectedLeaderEmp = employees.find((e) => e.id === leaderId);
   const finalCoLeadersList = selectedLeaderEmp && selectedLeaderEmp.address && filterByResidency
     ? coLeadersList.filter((e) => {
+        // Always preserve currently selected co-leaders
+        if (coLeaderIds.includes(e.id)) return true;
+        
         const leaderBgy = getBarangayFromAddress(selectedLeaderEmp.address).toLowerCase().trim();
         const empBgy = getBarangayFromAddress(e.address).toLowerCase().trim();
-        return leaderBgy && empBgy && (leaderBgy === empBgy || leaderBgy.includes(empBgy) || empBgy.includes(leaderBgy));
+        return leaderBgy && empBgy && leaderBgy === empBgy;
       })
     : coLeadersList;
 
