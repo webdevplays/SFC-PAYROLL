@@ -30,8 +30,18 @@ export const Groups: React.FC = () => {
   const itemsPerPage = 5;
 
   // Filter leaders / co-leaders for dropdowns
-  const leadersList = employees.filter((e) => e.position === 'Leader' || e.position === 'Survey Leader' || e.position === 'Field Supervisor');
-  const coLeadersList = employees.filter((e) => e.position === 'Co-Leader' || e.position === 'Survey Co-Leader' || e.position === 'Field Surveyor' || e.position === 'Lead Enumerator' || e.position.includes('Co-') || e.position.startsWith('Others'));
+  const leadersList = employees.filter((e) => {
+    const pos = e.position.toLowerCase();
+    const isLeaderWord = pos.includes('leader') && !pos.includes('co-');
+    const isLeadWord = pos.includes('lead') && !pos.includes('co-');
+    const isSupervisor = pos.includes('supervisor');
+    return isLeaderWord || isLeadWord || isSupervisor || e.id === leaderId;
+  });
+  const coLeadersList = employees.filter((e) => {
+    const pos = e.position.toLowerCase();
+    const isCoLeader = pos.includes('co-') || pos.includes('surveyor') || pos.includes('enumerator') || pos.includes('others');
+    return isCoLeader || coLeaderIds.includes(e.id);
+  });
 
   const getBarangayFromAddress = (addr: string) => {
     if (!addr) return '';
