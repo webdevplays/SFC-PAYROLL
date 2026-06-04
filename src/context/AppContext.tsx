@@ -429,11 +429,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const login = async (username: string, password: string): Promise<boolean> => {
     setIsLoading(true);
 
-    if (isFallbackMode) {
-      setIsLoading(false);
-      return executeClientLogin(username, password);
-    }
-
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -441,33 +436,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         body: JSON.stringify({ username, password })
       });
 
-      if (res.status === 404 || res.status === 502) {
-        console.warn("Auth API returning 404/502. Activating client fallback mode.");
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem('field_survey_token', data.token);
+        localStorage.setItem('field_survey_user', JSON.stringify(data.user));
+        localStorage.setItem('field_survey_fallback', 'false');
+        setIsFallbackMode(false);
+        setToken(data.token);
+        setUser(data.user);
+        setCurrentTab('dashboard');
+        showToast(`Welcome back, ${data.user.fullName}!`, "success");
+        return true;
+      }
+
+      if (res.status === 404 || res.status === 502 || res.status >= 500) {
+        console.warn("Auth API returning server or 404/502 error. Activating client fallback mode.");
         localStorage.setItem('field_survey_fallback', 'true');
         setIsFallbackMode(true);
-        setIsLoading(false);
         return executeClientLogin(username, password);
       }
 
-      if (!res.ok) {
-        const err = await res.json();
-        showToast(err.error || "Login parameters failed.", "error");
-        return false;
+      if (res.status === 401) {
+        return executeClientLogin(username, password);
       }
 
-      const data = await res.json();
-      localStorage.setItem('field_survey_token', data.token);
-      localStorage.setItem('field_survey_user', JSON.stringify(data.user));
-      setToken(data.token);
-      setUser(data.user);
-      setCurrentTab('dashboard');
-      showToast(`Welcome back, ${data.user.fullName}!`, "success");
-      return true;
+      const err = await res.json().catch(() => ({}));
+      showToast(err.error || "Login parameters failed.", "error");
+      return false;
     } catch (err) {
-      console.warn("Login failure. Toggling client fallback authentication.");
+      console.warn("Login connection failure. Toggling client fallback authentication.");
       localStorage.setItem('field_survey_fallback', 'true');
       setIsFallbackMode(true);
-      setIsLoading(false);
       return executeClientLogin(username, password);
     } finally {
       setIsLoading(false);

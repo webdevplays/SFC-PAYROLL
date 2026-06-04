@@ -527,17 +527,34 @@ function checkAuth(req: express.Request, res: express.Response, next: express.Ne
 }
 
 // Authentication login
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password are required' });
   }
 
   // Check dynamic users first
-  const db = getDB();
-  const matchedUser = (db.users || []).find(
+  let db = getDB();
+  let matchedUser = (db.users || []).find(
     (u: any) => u.username.toLowerCase() === username.toLowerCase() && u.password === password
   );
+
+  // If not found in current local file state, dynamically pull latest users from Google Sheets first if configured
+  if (!matchedUser) {
+    const config = getEffectiveSheetConfig(db);
+    if (config && config.isSyncEnabled && config.spreadsheetId && config.clientEmail && config.privateKey) {
+      try {
+        console.log(`User ${username} not cached locally on this server instance. Pulling latest Users from Google Sheets to verify...`);
+        await pullDatabaseFromGoogleSheets(db);
+        db = getDB(); // reload db with newly pulled users
+        matchedUser = (db.users || []).find(
+          (u: any) => u.username.toLowerCase() === username.toLowerCase() && u.password === password
+        );
+      } catch (err: any) {
+        console.error("Dynamic user verification sheet pull failed:", err.message);
+      }
+    }
+  }
 
   if (matchedUser) {
     const user = { username: matchedUser.username, role: matchedUser.role, fullName: matchedUser.fullName };
