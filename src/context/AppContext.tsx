@@ -214,51 +214,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!token) return;
     setIsLoading(true);
 
-    if (isFallbackMode) {
-      loadLocalState();
-      setIsLoading(false);
-      
-      const db = getLocalDB();
-      if (db.sheetConfig && db.sheetConfig.isSyncEnabled) {
-        // If the local database is cold (empty) on this device, pull/hydrate instead of pushing! This prevents blank overrides.
-        const isLocalCold = (!db.employees || db.employees.length === 0) && (!db.users || db.users.length === 0);
-        if (isLocalCold) {
-          console.log("[Client Bootstrap] Cold start detected in offline mode. Pulling state from Google Sheets...");
-          pullDatabaseFromGoogleSheetsClient(db.sheetConfig)
-            .then((restored) => {
-              db.employees = restored.employees;
-              db.barangays = restored.barangays;
-              db.groups = restored.groups;
-              db.surveys = restored.surveys;
-              db.settlements = restored.settlements;
-              db.paidPayroll = restored.paidPayroll;
-              if (restored.users && restored.users.length > 0) {
-                db.users = restored.users;
-              }
-              const auditDb = getLocalDB();
-              auditDb.employees = restored.employees;
-              auditDb.barangays = restored.barangays;
-              auditDb.groups = restored.groups;
-              auditDb.surveys = restored.surveys;
-              auditDb.settlements = restored.settlements;
-              auditDb.paidPayroll = restored.paidPayroll;
-              auditDb.users = restored.users;
-              saveLocalDB(auditDb);
-              loadLocalState();
-              console.log("[Client Bootstrap] Cold re-hydration from Google Sheets completed successfully!");
-            })
-            .catch((err) => {
-              console.warn("[Client Bootstrap] Cold re-hydration failed, skipping:", err.message);
-            });
-        } else {
-          syncDatabaseToGoogleSheetsClient(db, db.sheetConfig).catch((err) => {
-            console.warn("[Client Sync] Startup sheet sync skipped/failed:", err.message);
-          });
-        }
-      }
-      return;
-    }
-
     try {
       const headers = getHeaders();
 
@@ -274,8 +229,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         fetch('/api/users', { headers })
       ]);
 
+      if (empRes.status === 401) {
+        console.warn("Unauthorized server response, logging out user session.");
+        logout();
+        return;
+      }
+
       if (empRes.status === 404 || empRes.status === 502 || !empRes.ok) {
-        throw new Error("Express backend returned terminal API 404 or connection rejected");
+        throw new Error("Express backend returned terminal API status or connection rejected");
       }
 
       // Read responses safely
@@ -288,6 +249,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const fetchedAuditLogs = logRes.ok ? await logRes.json() : [];
       const fetchedSheetConfig = settingsRes.ok ? await settingsRes.json() : null;
       const fetchedUsers = (usersRes && usersRes.ok) ? await usersRes.json() : [];
+
+      // Connection succeeded. Clear the permanent fallback trap!
+      localStorage.setItem('field_survey_fallback', 'false');
+      setIsFallbackMode(false);
 
       const localDB = getLocalDB();
 
@@ -366,9 +331,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       
       const db = getLocalDB();
       if (db.sheetConfig && db.sheetConfig.isSyncEnabled) {
-        syncDatabaseToGoogleSheetsClient(db, db.sheetConfig).catch((err) => {
-          console.warn("[Client Sync] Offline fallback sheets sync error:", err.message);
-        });
+        // If the local database is cold (empty) on this device, pull/hydrate instead of pushing! This prevents blank overrides.
+        const isLocalCold = (!db.employees || db.employees.length === 0) && (!db.users || db.users.length === 0);
+        if (isLocalCold) {
+          console.log("[Client Bootstrap] Cold start detected in offline mode. Pulling state from Google Sheets...");
+          pullDatabaseFromGoogleSheetsClient(db.sheetConfig)
+            .then((restored) => {
+              db.employees = restored.employees;
+              db.barangays = restored.barangays;
+              db.groups = restored.groups;
+              db.surveys = restored.surveys;
+              db.settlements = restored.settlements;
+              db.paidPayroll = restored.paidPayroll;
+              if (restored.users && restored.users.length > 0) {
+                db.users = restored.users;
+              }
+              const auditDb = getLocalDB();
+              auditDb.employees = restored.employees;
+              auditDb.barangays = restored.barangays;
+              auditDb.groups = restored.groups;
+              auditDb.surveys = restored.surveys;
+              auditDb.settlements = restored.settlements;
+              auditDb.paidPayroll = restored.paidPayroll;
+              auditDb.users = restored.users;
+              saveLocalDB(auditDb);
+              loadLocalState();
+              console.log("[Client Bootstrap] Cold re-hydration from Google Sheets completed successfully!");
+            })
+            .catch((errClientSync) => {
+              console.warn("[Client Bootstrap] Cold re-hydration failed, skipping:", errClientSync.message);
+            });
+        } else {
+          syncDatabaseToGoogleSheetsClient(db, db.sheetConfig).catch((errClientSync) => {
+            console.warn("[Client Sync] Offline fallback sheets sync error:", errClientSync.message);
+          });
+        }
       }
     } finally {
       setIsLoading(false);
