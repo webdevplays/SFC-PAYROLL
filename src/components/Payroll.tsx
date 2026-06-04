@@ -260,7 +260,7 @@ export const Payroll: React.FC = () => {
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-                  Leaders Name base on Barangay Area Sector
+                  Leaders Name
                 </label>
                 <select
                   value={selectedGroupId}
